@@ -1,12 +1,15 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Vignette")
+    keywords: qsTr('dark edges fade', 'search keywords for the Vignette video filter') + ' vignette gpu'
     mlt_service: "movit.vignette"
     needsGPU: true
     qml: "ui_movit.qml"
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -15,7 +18,6 @@ Metadata {
             Parameter {
                 name: qsTr('Outer radius')
                 property: 'radius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -23,7 +25,6 @@ Metadata {
             Parameter {
                 name: qsTr('Inner radius')
                 property: 'inner_radius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1

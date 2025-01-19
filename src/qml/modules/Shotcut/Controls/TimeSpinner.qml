@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 Meltytech, LLC
+ * Copyright (c) 2014-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,96 +14,137 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 RowLayout {
     id: root
+
     property int minimumValue: 0
     property int maximumValue: 99
     property int value: 0
     property alias undoButtonVisible: undoButton.visible
     property alias saveButtonVisible: saveButton.visible
 
-    signal setDefaultClicked()
-    signal saveDefaultClicked()
+    signal setDefaultClicked
+    signal saveDefaultClicked
+
+    function clamp(x, min, max) {
+        return Math.max(min, Math.min(max, x));
+    }
+
+    onValueChanged: timeField.text = application.timeFromFrames(clamp(value, minimumValue, maximumValue))
 
     spacing: 0
 
     TextField {
         id: timeField
-        text: filter.timeFromFrames(clamp(value, minimumValue, maximumValue))
+
+        text: application.timeFromFrames(clamp(value, minimumValue, maximumValue))
         horizontalAlignment: TextInput.AlignRight
         selectByMouse: true
-        validator: RegExpValidator {regExp: /^\s*(\d*:){0,2}(\d*[.;:])?\d*\s*$/}
         onEditingFinished: value = filter.framesFromTime(text)
         Keys.onDownPressed: decrementAction.trigger()
         Keys.onUpPressed: incrementAction.trigger()
-        onFocusChanged: if (focus) selectAll()
+        onFocusChanged: {
+            if (focus)
+                selectAll();
+        }
+
+        validator: RegularExpressionValidator {
+            regularExpression: /^\s*(\d*:){0,2}(\d*[.;:])?\d*\s*$/
+        }
     }
+
     Shotcut.Button {
         id: decrementButton
+
         icon.name: 'list-remove'
         icon.source: 'qrc:///icons/oxygen/32x32/actions/list-remove.png'
-        Shotcut.HoverTip { text: qsTr('Decrement') }
         implicitWidth: 20
         implicitHeight: 20
+
+        Shotcut.HoverTip {
+            text: qsTr('Decrement')
+        }
+
         MouseArea {
             anchors.fill: parent
             onPressed: decrementAction.trigger()
             onPressAndHold: decrementTimer.start()
             onReleased: decrementTimer.stop()
         }
+
         Timer {
             id: decrementTimer
+
             repeat: true
             interval: 200
             triggeredOnStart: true
             onTriggered: decrementAction.trigger()
         }
     }
+
     Shotcut.Button {
         id: incrementButton
+
         icon.name: 'list-add'
         icon.source: 'qrc:///icons/oxygen/32x32/actions/list-add.png'
-        Shotcut.HoverTip { text: qsTr('Increment') }
         implicitWidth: 20
         implicitHeight: 20
+
+        Shotcut.HoverTip {
+            text: qsTr('Increment')
+        }
+
         MouseArea {
             anchors.fill: parent
             onPressed: incrementAction.trigger()
             onPressAndHold: incrementTimer.start()
             onReleased: incrementTimer.stop()
         }
+
         Timer {
             id: incrementTimer
+
             repeat: true
             interval: 200
             triggeredOnStart: true
             onTriggered: incrementAction.trigger()
         }
     }
+
     Shotcut.UndoButton {
         id: undoButton
+
         onClicked: root.setDefaultClicked()
     }
+
     Shotcut.SaveDefaultButton {
         id: saveButton
+
         onClicked: root.saveDefaultClicked()
     }
+
     Action {
         id: decrementAction
+
         onTriggered: value = Math.max(value - 1, minimumValue)
     }
+
     Action {
         id: incrementAction
+
         onTriggered: value = Math.min(value + 1, maximumValue)
     }
 
-    function clamp(x, min, max) {
-        return Math.max(min, Math.min(max, x))
+    Connections {
+        function onTimeFormatChanged() {
+            timeField.text = application.timeFromFrames(root.value);
+        }
+
+        target: settings
     }
 }

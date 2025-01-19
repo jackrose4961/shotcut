@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Meltytech, LLC
+ * Copyright (c) 2016-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
 #define KEYFRAMESDOCK_H
 
 #include "qmltypes/qmlfilter.h"
-#include "models/metadatamodel.h"
-#include "sharedframe.h"
 #include "models/keyframesmodel.h"
 
 #include <QDockWidget>
@@ -29,50 +27,73 @@
 
 class QmlFilter;
 class QmlMetadata;
-class MetadataModel;
 class AttachedFiltersModel;
 class QmlProducer;
+class QMenu;
 
 class KeyframesDock : public QDockWidget
 {
     Q_OBJECT
-    
-public:
-    explicit KeyframesDock(QmlProducer* qmlProducer, QWidget *parent = 0);
+    Q_PROPERTY(double timeScale READ timeScale WRITE setTimeScale NOTIFY timeScaleChanged)
 
-    KeyframesModel& model() { return m_model; }
+public:
+    explicit KeyframesDock(QmlProducer *qmlProducer, QWidget *parent = 0);
+
+    KeyframesModel &model()
+    {
+        return m_model;
+    }
     Q_INVOKABLE int seekPrevious();
     Q_INVOKABLE int seekNext();
     int currentParameter() const;
+    double timeScale() const
+    {
+        return m_timeScale;
+    }
+    void setTimeScale(double value);
 
 signals:
     void changed(); /// Notifies when a filter parameter changes.
+    void setZoom(double value);
     void zoomIn();
     void zoomOut();
     void zoomToFit();
     void resetZoom();
     void seekPreviousSimple();
     void seekNextSimple();
+    void newFilter(); // Notifies when the filter itself has been changed
+    void timeScaleChanged();
+    void dockClicked();
 
 public slots:
-    void setCurrentFilter(QmlFilter* filter, QmlMetadata* meta);
+    void setCurrentFilter(QmlFilter *filter, QmlMetadata *meta);
     void load(bool force = false);
+    void reload();
     void onProducerModified();
 
 protected:
     bool event(QEvent *event);
-    void keyPressEvent(QKeyEvent* event);
-    void keyReleaseEvent(QKeyEvent* event);
+    void keyPressEvent(QKeyEvent *event);
+    void keyReleaseEvent(QKeyEvent *event);
 
 private slots:
-    void onVisibilityChanged(bool visible);
+    void onDockRightClicked();
+    void onKeyframeRightClicked();
+    void onClipRightClicked();
 
 private:
+    void setupActions();
     QQuickWidget m_qview;
-    QmlMetadata m_emptyQmlMetadata;
-    QmlFilter m_emptyQmlFilter;
     KeyframesModel m_model;
-    QmlProducer* m_qmlProducer;
+    QmlMetadata *m_metadata;
+    QmlFilter *m_filter;
+    QmlProducer *m_qmlProducer;
+    QMenu *m_mainMenu;
+    QMenu *m_keyMenu;
+    QMenu *m_keyTypePrevMenu;
+    QMenu *m_keyTypeNextMenu;
+    QMenu *m_clipMenu;
+    double m_timeScale {1.0};
 };
 
 #endif // KEYFRAMESDOCK_H

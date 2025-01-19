@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Meltytech, LLC
+ * Copyright (c) 2018-2022 Meltytech, LLC
 
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,33 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
+    function setControls() {
+        xScatter.value = filter.get('x_scatter');
+        yScatter.value = filter.get('y_scatter');
+        scale.value = filter.getDouble('scale');
+        mix.value = filter.getDouble('mix');
+    }
+
     width: 350
     height: 100
     Component.onCompleted: {
         if (filter.isNew) {
             // Set default parameter values
-            filter.set('x_scatter', 2)
-            filter.set('y_scatter', 2)
-            filter.set('scale', 1.5)
-            filter.set('mix', 0)
-            filter.set('invert', 0)
-            filter.savePreset(preset.parameters)
+            filter.set('x_scatter', 2);
+            filter.set('y_scatter', 2);
+            filter.set('scale', 1.5);
+            filter.set('mix', 0);
+            filter.set('invert', 0);
+            filter.savePreset(preset.parameters);
         }
-        setControls()
-    }
-
-    function setControls() {
-        xScatter.value = filter.get('x_scatter')
-        yScatter.value = filter.get('y_scatter')
-        scale.value = filter.getDouble('scale')
-        mix.value = filter.getDouble('mix')
+        setControls();
     }
 
     GridLayout {
@@ -53,8 +52,10 @@ Item {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: ['x_scatter', 'y_scatter', 'scale', 'mix']
             Layout.columnSpan: 2
             onPresetSelected: setControls()
@@ -64,8 +65,10 @@ Item {
             text: qsTr('Line Width')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: xScatter
+
             minimumValue: 1
             maximumValue: 10
             stepSize: 1
@@ -73,6 +76,7 @@ Item {
             value: filter.get('x_scatter')
             onValueChanged: filter.set('x_scatter', value)
         }
+
         Shotcut.UndoButton {
             onClicked: xScatter.value = 2
         }
@@ -81,8 +85,10 @@ Item {
             text: qsTr('Line Height')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: yScatter
+
             minimumValue: 1
             maximumValue: 10
             stepSize: 1
@@ -90,6 +96,7 @@ Item {
             value: filter.get('y_scatter')
             onValueChanged: filter.set('y_scatter', value)
         }
+
         Shotcut.UndoButton {
             onClicked: yScatter.value = 2
         }
@@ -98,8 +105,10 @@ Item {
             text: qsTr('Contrast')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: scale
+
             minimumValue: 0
             maximumValue: 10
             stepSize: 1
@@ -108,6 +117,7 @@ Item {
             value: filter.get('scale')
             onValueChanged: filter.set('scale', value)
         }
+
         Shotcut.UndoButton {
             onClicked: scale.value = 1.5
         }
@@ -116,8 +126,10 @@ Item {
             text: qsTr('Color')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: mix
+
             minimumValue: 0
             maximumValue: 10
             stepSize: 1
@@ -126,6 +138,7 @@ Item {
             value: filter.get('mix')
             onValueChanged: filter.set('mix', value)
         }
+
         Shotcut.UndoButton {
             onClicked: mix.value = 0
         }

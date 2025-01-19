@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,7 @@
 #include <QColor>
 #include <QString>
 
-namespace Markers
-{
+namespace Markers {
 
 class Marker
 {
@@ -52,27 +51,30 @@ public:
         ColorRole,
     };
 
-    explicit MarkersModel(QObject* parent = 0);
+    explicit MarkersModel(QObject *parent = 0);
     virtual ~MarkersModel();
 
-    void load(Mlt::Producer* producer);
+    void load(Mlt::Producer *producer);
     Markers::Marker getMarker(int markerIndex);
     int uniqueKey() const;
     int markerIndexForPosition(int position);
+    int markerIndexForRange(int start, int end);
+    int rangeMarkerIndexForPosition(int position);
     Q_INVOKABLE int nextMarkerPosition(int position);
     Q_INVOKABLE int prevMarkerPosition(int position);
     QModelIndex modelIndexForRow(int row);
     QMap<int, QString> ranges();
     QStringList recentColors();
-    QList<Markers::Marker> getMarkers();
+    QList<Markers::Marker> getMarkers() const;
+    QList<QColor> allColors() const;
 
     // These should only be called by the marker commands
     void doRemove(int markerIndex);
-    void doInsert(int markerIndex, const Markers::Marker& marker);
-    void doAppend(const Markers::Marker& marker);
-    void doUpdate(int markerIndex,  const Markers::Marker& marker);
+    void doInsert(int markerIndex, const Markers::Marker &marker);
+    void doAppend(const Markers::Marker &marker);
+    void doUpdate(int markerIndex,  const Markers::Marker &marker);
     void doClear();
-    void doReplace(QList<Markers::Marker>& markers);
+    void doReplace(QList<Markers::Marker> &markers);
     void doShift(int shiftPosition, int shiftAmount);
 
 signals:
@@ -82,29 +84,29 @@ signals:
 
 public slots:
     void remove(int markerIndex);
-    void append(const Markers::Marker& marker);
-    void update(int markerIndex, const Markers::Marker& marker);
+    void append(const Markers::Marker &marker);
+    void update(int markerIndex, const Markers::Marker &marker);
     void move(int markerIndex, int start, int end);
-    void setColor(int markerIndex, const QColor& color);
+    void setColor(int markerIndex, const QColor &color);
     void clear();
 
 protected:
     // Implement QAbstractItemModel
-    int rowCount(const QModelIndex& parent) const;
-    int columnCount(const QModelIndex& parent) const;
-    QVariant data(const QModelIndex& index, int role) const;
+    int rowCount(const QModelIndex &parent) const;
+    int columnCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column = 0, const QModelIndex& parent = QModelIndex()) const;
-    QModelIndex parent(const QModelIndex& index) const;
+    QModelIndex index(int row, int column = 0, const QModelIndex &parent = QModelIndex()) const;
+    QModelIndex parent(const QModelIndex &index) const;
     QHash<int, QByteArray> roleNames() const;
 
 private:
     int markerCount() const;
     int keyIndex(int key) const;
-    Mlt::Properties* getMarkerProperties(int markerIndex);
-    void updateRecentColors(const QColor& color);
+    Mlt::Properties *getMarkerProperties(int markerIndex);
+    void updateRecentColors(const QColor &color);
 
-    Mlt::Producer* m_producer;
+    Mlt::Producer *m_producer;
     QList<int> m_keys;
     QMap<QRgb, QString> m_recentColors;
 };

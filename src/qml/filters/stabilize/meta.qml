@@ -1,13 +1,16 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Stabilize")
+    keywords: qsTr('smooth deshake', 'search keywords for the Stabilize video filter') + ' vid.stab stabilize'
     mlt_service: "vidstab"
     qml: "ui.qml"
+    icon: 'icon.webp'
     isClipOnly: true
-    isGpuCompatible: false
+    allowMultiple: false
+
     keyframes {
         allowTrim: false
     }

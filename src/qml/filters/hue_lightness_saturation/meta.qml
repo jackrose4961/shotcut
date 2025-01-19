@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Meltytech, LLC
+ * Copyright (c) 2018-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,15 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Hue/Lightness/Saturation")
+    keywords: qsTr('color value desaturate grayscale', 'search keywords for the Hue/Lightness/Saturation video filter') + ' hue lightness saturation'
     mlt_service: 'avfilter.hue'
     qml: 'ui.qml'
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -31,7 +33,6 @@ Metadata {
             Parameter {
                 name: qsTr('Hue')
                 property: 'av.h'
-                isSimple: true
                 isCurve: true
                 minimum: -360
                 maximum: 360
@@ -39,7 +40,6 @@ Metadata {
             Parameter {
                 name: qsTr('Lightness')
                 property: 'av.b'
-                isSimple: true
                 isCurve: true
                 minimum: -10
                 maximum: 10
@@ -47,7 +47,6 @@ Metadata {
             Parameter {
                 name: qsTr('Saturation')
                 property: 'av.s'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 5

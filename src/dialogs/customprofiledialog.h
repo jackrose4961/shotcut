@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Meltytech, LLC
+ * Copyright (c) 2013-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,26 +27,26 @@ class CustomProfileDialog;
 class CustomProfileDialog : public QDialog
 {
     Q_OBJECT
-    
+
 public:
     explicit CustomProfileDialog(QWidget *parent = 0);
     ~CustomProfileDialog();
     QString profileName() const;
-    
+
 private slots:
     void on_buttonBox_accepted();
-    
+
     void on_widthSpinner_editingFinished();
 
     void on_heightSpinner_editingFinished();
 
     void on_fpsSpinner_editingFinished();
 
-    void on_fpsComboBox_activated(const QString &arg1);
+    void on_fpsComboBox_textActivated(const QString &arg1);
 
-    void on_resolutionComboBox_activated(const QString &arg1);
+    void on_resolutionComboBox_textActivated(const QString &arg1);
 
-    void on_aspectRatioComboBox_activated(const QString &arg1);
+    void on_aspectRatioComboBox_textActivated(const QString &arg1);
 
 private:
     Ui::CustomProfileDialog *ui;

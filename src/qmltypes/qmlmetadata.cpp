@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include "qmlmetadata.h"
 #include "settings.h"
-#include "util.h"
 #include <Logger.h>
 #include <QVersionNumber>
 
@@ -33,8 +32,11 @@ QmlMetadata::QmlMetadata(QObject *parent)
     , m_gpuAlt("")
     , m_allowMultiple(true)
     , m_isClipOnly(false)
+    , m_isTrackOnly(false)
+    , m_isOutputOnly(false)
     , m_isGpuCompatible(true)
     , m_isDeprecated(false)
+    , m_seekReverse(false)
 {
 }
 
@@ -69,6 +71,8 @@ QString QmlMetadata::uniqueId() const
 {
     if (!objectName().isEmpty()) {
         return objectName();
+    } else if (m_type == FilterSet) {
+        return m_name;
     } else {
         return mlt_service();
     }
@@ -113,6 +117,11 @@ QUrl QmlMetadata::vuiFilePath() const
     return retVal;
 }
 
+void QmlMetadata::setIconFileName(const QString &fileName)
+{
+    m_icon = fileName;
+}
+
 void QmlMetadata::setIsAudio(bool isAudio)
 {
     m_isAudio = isAudio;
@@ -139,7 +148,7 @@ void QmlMetadata::setIsFavorite(bool isFavorite)
     emit changed();
 }
 
-void QmlMetadata::setGpuAlt(const QString& gpuAlt)
+void QmlMetadata::setGpuAlt(const QString &gpuAlt)
 {
     m_gpuAlt = gpuAlt;
     emit changed();
@@ -155,6 +164,16 @@ void QmlMetadata::setIsClipOnly(bool isClipOnly)
     m_isClipOnly = isClipOnly;
 }
 
+void QmlMetadata::setIsTrackOnly(bool isTrackOnly)
+{
+    m_isTrackOnly = isTrackOnly;
+}
+
+void QmlMetadata::setIsOutputOnly(bool isOutputOnly)
+{
+    m_isOutputOnly = isOutputOnly;
+}
+
 bool QmlMetadata::isMltVersion(const QString &version)
 {
     if (!m_minimumVersion.isEmpty()) {
@@ -165,17 +184,26 @@ bool QmlMetadata::isMltVersion(const QString &version)
     return true;
 }
 
-QmlKeyframesMetadata::QmlKeyframesMetadata(QObject* parent)
+QmlKeyframesMetadata::QmlKeyframesMetadata(QObject *parent)
     : QObject(parent)
     , m_allowTrim(true)
     , m_allowAnimateIn(false)
     , m_allowAnimateOut(false)
     , m_enabled(true)
-    , m_allowSmooth(true)
+    , m_allowOvershoot(true)
 {
 }
 
-void QmlKeyframesMetadata::checkVersion(const QString& version)
+QmlKeyframesParameter *QmlKeyframesMetadata::parameter(const QString &propertyName) const
+{
+    for (const auto &p : m_parameters) {
+        if (propertyName == p->property())
+            return p;
+    }
+    return nullptr;
+}
+
+void QmlKeyframesMetadata::checkVersion(const QString &version)
 {
     if (!m_minimumVersion.isEmpty()) {
         LOG_DEBUG() << "MLT version:" << version << "Shotcut minimumVersion:" << m_minimumVersion;
@@ -189,14 +217,14 @@ void QmlKeyframesMetadata::setDisabled()
     m_enabled = m_allowAnimateIn = m_allowAnimateOut = false;
 }
 
-QmlKeyframesParameter::QmlKeyframesParameter(QObject* parent)
+QmlKeyframesParameter::QmlKeyframesParameter(QObject *parent)
     : QObject(parent)
-    , m_isSimple(false)
     , m_isCurve(false)
     , m_minimum(0.0)
     , m_maximum(0.0)
     , m_units("")
     , m_isRectangle(false)
     , m_rangeType(MinMax)
+    , m_isColor(false)
 {
 }

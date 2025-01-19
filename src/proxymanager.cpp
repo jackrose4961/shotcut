@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Meltytech, LLC
+ * Copyright (c) 2020-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,23 +33,25 @@
 #include <Logger.h>
 #include <utime.h>
 
-static const char* kProxySubfolder = "proxies";
-static const char* kProxyVideoExtension = ".mp4";
-static const char* kGoProProxyVideoExtension = ".LRV";
-static const char* kProxyPendingVideoExtension = ".pending.mp4";
-static const char* kProxyImageExtension = ".jpg";
-static const char* kProxyPendingImageExtension = ".pending.jpg";
+static const char *kProxySubfolder = "proxies";
+static const char *kProxyVideoExtension = ".mp4";
+static const char *kGoProProxyVideoExtension = ".LRV";
+static const char *kDJIProxyVideoExtension = ".LRF";
+static const char *kProxyPendingVideoExtension = ".pending.mp4";
+static const char *kProxyImageExtension = ".jpg";
+static const char *kProxyPendingImageExtension = ".pending.jpg";
 static const float kProxyResolutionRatio = 1.3f;
 static const int   kFallbackProxyResolution = 540;
 static const QStringList kPixFmtsWithAlpha = {"pal8", "argb", "rgba", "abgr",
-    "bgra", "yuva420p", "yuva422p", "yuva444p", "yuva420p9be", "yuva420p9le",
-    "yuva422p9be", "yuva422p9le", "yuva444p9be", "yuva444p9le", "yuva420p10be",
-    "yuva420p10le", "yuva422p10be", "yuva422p10le", "yuva444p10be", "yuva444p10le",
-    "yuva420p16be", "yuva420p16le", "yuva422p16be", "yuva422p16le", "yuva444p16be",
-    "yuva444p16le", "rgba64be", "rgba64le", "bgra64be", "bgra64le", "ya8",
-    "ya16le", "ya16be", "gbrap", "gbrap16le", "gbrap16be", "ayuv64le", "ayuv64be",
-    "gbrap12le", "gbrap12be", "gbrap10le", "gbrap10be", "gbrapf32be",
-    "gbrapf32le", "yuva422p12be", "yuva422p12le", "yuva444p12be", "yuva444p12le"};
+                                              "bgra", "yuva420p", "yuva422p", "yuva444p", "yuva420p9be", "yuva420p9le",
+                                              "yuva422p9be", "yuva422p9le", "yuva444p9be", "yuva444p9le", "yuva420p10be",
+                                              "yuva420p10le", "yuva422p10be", "yuva422p10le", "yuva444p10be", "yuva444p10le",
+                                              "yuva420p16be", "yuva420p16le", "yuva422p16be", "yuva422p16le", "yuva444p16be",
+                                              "yuva444p16le", "rgba64be", "rgba64le", "bgra64be", "bgra64le", "ya8",
+                                              "ya16le", "ya16be", "gbrap", "gbrap16le", "gbrap16be", "ayuv64le", "ayuv64be",
+                                              "gbrap12le", "gbrap12be", "gbrap10le", "gbrap10be", "gbrapf32be",
+                                              "gbrapf32le", "yuva422p12be", "yuva422p12le", "yuva444p12be", "yuva444p12le"
+                                             };
 
 QDir ProxyManager::dir()
 {
@@ -67,7 +69,7 @@ QDir ProxyManager::dir()
     return dir;
 }
 
-QString ProxyManager::resource(Mlt::Service& producer)
+QString ProxyManager::resource(Mlt::Service &producer)
 {
     QString resource = QString::fromUtf8(producer.get("resource"));
     if (producer.get_int(kIsProxyProperty) && producer.get(kOriginalResourceProperty)) {
@@ -78,7 +80,8 @@ QString ProxyManager::resource(Mlt::Service& producer)
     return resource;
 }
 
-void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, ScanMode scanMode, const QPoint& aspectRatio, bool replace)
+void ProxyManager::generateVideoProxy(Mlt::Producer &producer, bool fullRange, ScanMode scanMode,
+                                      const QPoint &aspectRatio, bool replace)
 {
     // Always regenerate per preview scaling or 540 if not specified
     QString resource = ProxyManager::resource(producer);
@@ -96,12 +99,20 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
     file.close();
 
     args << "-loglevel" << "verbose";
+    args << "-noautorotate";
     args << "-i" << resource;
     args << "-max_muxing_queue_size" << "9999";
     // transcode all streams except data, subtitles, and attachments
-    auto audioIndex = producer.property_exists(kDefaultAudioIndexProperty)? producer.get_int(kDefaultAudioIndexProperty) : producer.get_int("audio_index");
+    auto audioIndex = producer.property_exists(kDefaultAudioIndexProperty) ? producer.get_int(
+                          kDefaultAudioIndexProperty) : producer.get_int("audio_index");
     if (producer.get_int("video_index") < audioIndex) {
-        args << "-map" << "0:V?" << "-map" << "0:a?";
+        // iPhone 16 Pro has a 4 channel (spatial) audio stream with codec "apac" that causes failure.
+        // This is not limited to only iPhone 16 Pro, but I think most iPhones only record one usable audio track.
+        if (!::qstrcmp(producer.get("meta.media.1.stream.type"), "audio")
+                && QString(producer.get("meta.attr.com.apple.quicktime.model.markup")).contains("iPhone"))
+            args << "-map" << "0:V?" << "-map" << "0:a:0";
+        else
+            args << "-map" << "0:V?" << "-map" << "0:a?";
     } else {
         args << "-map" << "0:a?" << "-map" << "0:V?";
     }
@@ -109,12 +120,14 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
     args << "-vf";
 
     if (scanMode == Automatic) {
-        filters = QString("yadif=deint=interlaced,");
+        filters = QStringLiteral("yadif=deint=interlaced,");
     } else if (scanMode != Progressive) {
-        filters = QString("yadif=parity=%1,").arg(scanMode == InterlacedTopFieldFirst? "tff" : "bff");
+        filters = QStringLiteral("yadif=parity=%1,").arg(scanMode == InterlacedTopFieldFirst ? "tff" :
+                                                         "bff");
     }
-    filters += QString("scale=width=-2:height=%1").arg(resolution());
-    if (Settings.proxyUseHardware() && (hwCodecs.contains("hevc_vaapi") || hwCodecs.contains("h264_vaapi"))) {
+    filters += QStringLiteral("scale=width=-2:height=%1").arg(resolution());
+    if (Settings.proxyUseHardware() && (hwCodecs.contains("hevc_vaapi")
+                                        || hwCodecs.contains("h264_vaapi"))) {
         hwFilters = ",format=nv12,hwupload";
     }
     if (fullRange) {
@@ -158,7 +171,7 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
         break;
     }
     if (!aspectRatio.isNull()) {
-        args << "-aspect" << QString("%1:%2").arg(aspectRatio.x()).arg(aspectRatio.y());
+        args << "-aspect" << QStringLiteral("%1:%2").arg(aspectRatio.x()).arg(aspectRatio.y());
     }
     args << "-f" << "mp4" << "-codec:a" << "ac3" << "-b:a" << "256k";
     args << "-pix_fmt" << "yuv420p";
@@ -166,7 +179,8 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
         if (hwCodecs.contains("hevc_nvenc")) {
             args << "-codec:v" << "hevc_nvenc";
             args << "-rc" << "constqp";
-            args << "-vglobal_quality" << "37";
+            args << "-qp:v" << "37";
+            args << "-b_ref_mode" << "0";
         } else if (hwCodecs.contains("hevc_qsv")) {
             args << "-load_plugin" << "hevc_hw";
             args << "-codec:v" << "hevc_qsv";
@@ -176,23 +190,38 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
             args << "-rc" << "1";
             args << "-qp_i" << "32" << "-qp_p" << "32";
         } else if (hwCodecs.contains("hevc_vaapi")) {
-            args << "-init_hw_device" << "vaapi=vaapi0:,connection_type=x11" << "-filter_hw_device" << "vaapi0";
+            args << "-init_hw_device" << "vaapi=vaapi0:" << "-filter_hw_device" << "vaapi0";
             args << "-codec:v" << "hevc_vaapi";
             args << "-qp" << "37";
+        } else if (hwCodecs.contains("hevc_mf")) {
+            args << "-codec:v" << "hevc_mf";
+            args << "-rate_control" << "quality";
+            args << "-quality" << "27";
+            args << "-hw_encoding" << "true" << "-pix_fmt" << "nv12";
         } else if (hwCodecs.contains("h264_nvenc")) {
             args << "-codec:v" << "h264_nvenc";
             args << "-rc" << "constqp";
-            args << "-vglobal_quality" << "37";
+            args << "-qp:v" << "37";
+            args << "-b_ref_mode" << "0";
         } else if (hwCodecs.contains("h264_vaapi")) {
-            args << "-init_hw_device" << "vaapi=vaapi0:,connection_type=x11" << "-filter_hw_device" << "vaapi0";
+            args << "-init_hw_device" << "vaapi=vaapi0:" << "-filter_hw_device" << "vaapi0";
             args << "-codec:v" << "h264_vaapi";
             args << "-qp" << "30";
+#if (defined(Q_OS_MAC) && defined(Q_PROCESSOR_ARM))
+        } else if (!fullRange && hwCodecs.contains("hevc_videotoolbox")) {
+            args << "-codec:v" << "hevc_videotoolbox";
+            args << "-q:v" << "45";
+        } else if (!fullRange && hwCodecs.contains("h264_videotoolbox")) {
+            args << "-codec:v" << "h264_videotoolbox";
+            args << "-q:v" << "45";
+#else
         } else if (hwCodecs.contains("hevc_videotoolbox")) {
             args << "-codec:v" << "hevc_videotoolbox";
-            args << "-b:v" << "2M";
+            args << "-b:v" << "5M";
         } else if (hwCodecs.contains("h264_videotoolbox")) {
             args << "-codec:v" << "h264_videotoolbox";
-            args << "-b:v" << "2M";
+            args << "-b:v" << "8M";
+#endif
         } else if (hwCodecs.contains("h264_qsv")) {
             args << "-codec:v" << "h264_qsv";
             args << "-q:v" << "36";
@@ -200,6 +229,11 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
             args << "-codec:v" << "h264_amf";
             args << "-rc" << "1";
             args << "-qp_i" << "32" << "-qp_p" << "32";
+        } else if (hwCodecs.contains("h264_mf")) {
+            args << "-codec:v" << "h264_mf";
+            args << "-rate_control" << "quality";
+            args << "-quality" << "41";
+            args << "-hw_encoding" << "true" << "-pix_fmt" << "nv12";
         }
     }
     if (!args.contains("-codec:v")) {
@@ -207,10 +241,12 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
         args << "-preset" << "veryfast";
         args << "-crf" << "23";
     }
-    args << "-g" << "1" << "-bf" << "0";
+    args << "-g" << QString::fromLatin1(hwCodecs.contains("hevc_nvenc") ? "0" :
+                                        hwCodecs.contains("h264_nvenc") ? "2" : "1");
+    args << "-bf" << "0";
     args << "-y" << fileName;
 
-    FfmpegJob* job = new FfmpegJob(fileName, args, true);
+    FfmpegJob *job = new FfmpegJob(fileName, args, true);
     job->setLabel(QObject::tr("Make proxy for %1").arg(Util::baseName(resource)));
     if (replace) {
         job->setPostJobAction(new ProxyReplacePostJobAction(resource, fileName, hash));
@@ -220,14 +256,12 @@ void ProxyManager::generateVideoProxy(Mlt::Producer& producer, bool fullRange, S
     JOBS.add(job);
 }
 
-void ProxyManager::generateImageProxy(Mlt::Producer& producer, bool replace)
+void ProxyManager::generateImageProxy(Mlt::Producer &producer, bool replace)
 {
     // Always regenerate per preview scaling or 540 if not specified
     QString resource = ProxyManager::resource(producer);
-    QStringList args;
     QString hash = Util::getHash(producer);
     QString fileName = ProxyManager::dir().filePath(hash + kProxyPendingImageExtension);
-    QString filters;
 
     // Touch file to make it in progress
     QFile file(fileName);
@@ -235,7 +269,7 @@ void ProxyManager::generateImageProxy(Mlt::Producer& producer, bool replace)
     file.resize(0);
     file.close();
 
-    AbstractJob* job = new QImageJob(fileName, resource, resolution());
+    AbstractJob *job = new QImageJob(fileName, resource, resolution());
     if (replace) {
         job->setPostJobAction(new ProxyReplacePostJobAction(resource, fileName, hash));
     } else {
@@ -246,14 +280,15 @@ void ProxyManager::generateImageProxy(Mlt::Producer& producer, bool replace)
 
 typedef QPair<QString, QString> MltProperty;
 
-static void processProperties(QXmlStreamWriter& newXml, QVector<MltProperty>& properties, const QString& root)
+static void processProperties(QXmlStreamWriter &newXml, QVector<MltProperty> &properties,
+                              const QString &root)
 {
     // Determine if this is a proxy resource
     bool isProxy = false;
     QString newResource;
     QString service;
     QString speed = "1";
-    for (const auto& p: properties) {
+    for (const auto &p : properties) {
         if (p.first == kIsProxyProperty) {
             isProxy = true;
         } else if (p.first == kOriginalResourceProperty) {
@@ -267,10 +302,10 @@ static void processProperties(QXmlStreamWriter& newXml, QVector<MltProperty>& pr
         }
     }
     QVector<MltProperty> newProperties;
-    QVector<MltProperty>& propertiesRef = properties;
+    QVector<MltProperty> &propertiesRef = properties;
     if (isProxy) {
         // Filter the properties
-        for (const auto& p: properties) {
+        for (const auto &p : properties) {
             // Replace the resource property if proxy
             if (p.first == "resource") {
                 // Convert to relative
@@ -278,21 +313,21 @@ static void processProperties(QXmlStreamWriter& newXml, QVector<MltProperty>& pr
                     newResource = newResource.mid(root.size());
                 }
                 if (service == "timewarp") {
-                    newProperties << MltProperty(p.first, QString("%1:%2").arg(speed).arg(newResource));
+                    newProperties << MltProperty(p.first, QStringLiteral("%1:%2").arg(speed, newResource));
                 } else {
                     newProperties << MltProperty(p.first, newResource);
                 }
             } else if (p.first == "warp_resource") {
                 newProperties << MltProperty(p.first, newResource);
-            // Remove special proxy and original resource properties
             } else if (p.first != kIsProxyProperty && p.first != kOriginalResourceProperty) {
+                // Remove special proxy and original resource properties
                 newProperties << MltProperty(p.first, p.second);
             }
         }
         propertiesRef = newProperties;
     }
     // Write all of the property elements
-    for (const auto& p : propertiesRef) {
+    for (const auto &p : propertiesRef) {
         newXml.writeStartElement("property");
         newXml.writeAttribute("name", p.first);
         newXml.writeCharacters(p.second);
@@ -302,7 +337,7 @@ static void processProperties(QXmlStreamWriter& newXml, QVector<MltProperty>& pr
     properties.clear();
 }
 
-bool ProxyManager::filterXML(QString& xmlString, QString root)
+bool ProxyManager::filterXML(QString &xmlString, QString root)
 {
     QString output;
     QXmlStreamReader xml(xmlString);
@@ -335,7 +370,8 @@ bool ProxyManager::filterXML(QString& xmlString, QString root)
             newXml.writeEntityReference(xml.name().toString());
             break;
         case QXmlStreamReader::ProcessingInstruction:
-            newXml.writeProcessingInstruction(xml.processingInstructionTarget().toString(), xml.processingInstructionData().toString());
+            newXml.writeProcessingInstruction(xml.processingInstructionTarget().toString(),
+                                              xml.processingInstructionData().toString());
             break;
         case QXmlStreamReader::StartDocument:
             newXml.writeStartDocument(xml.documentVersion().toString(), xml.isStandaloneDocument());
@@ -356,7 +392,7 @@ bool ProxyManager::filterXML(QString& xmlString, QString root)
                 processProperties(newXml, properties, root);
                 // Write the new start element
                 newXml.writeStartElement(xml.namespaceUri().toString(), element);
-                for (const auto& a : xml.attributes()) {
+                for (const auto &a : xml.attributes()) {
                     newXml.writeAttribute(a);
                 }
             }
@@ -364,7 +400,7 @@ bool ProxyManager::filterXML(QString& xmlString, QString root)
         }
         case QXmlStreamReader::EndElement:
             // At the end of a non-property element
-            if (xml.name() != "property") {
+            if (xml.name().toString() != "property") {
                 processProperties(newXml, properties, root);
                 newXml.writeEndElement();
             }
@@ -384,7 +420,7 @@ bool ProxyManager::filterXML(QString& xmlString, QString root)
     return false;
 }
 
-bool ProxyManager::fileExists(Mlt::Producer& producer)
+bool ProxyManager::fileExists(Mlt::Producer &producer)
 {
     QDir proxyDir(Settings.proxyFolder());
     QDir projectDir(MLT.projectFolder());
@@ -392,6 +428,9 @@ bool ProxyManager::fileExists(Mlt::Producer& producer)
     QString fileName;
     if (service.startsWith("avformat")) {
         if (QFile::exists(GoProProxyFilePath(producer.get("resource")))) {
+            return true;
+        }
+        if (QFile::exists(DJIProxyFilePath(producer.get("resource")))) {
             return true;
         }
         fileName = Util::getHash(producer) + kProxyVideoExtension;
@@ -403,7 +442,7 @@ bool ProxyManager::fileExists(Mlt::Producer& producer)
     return (projectDir.cd(kProxySubfolder) && projectDir.exists(fileName)) || proxyDir.exists(fileName);
 }
 
-bool ProxyManager::filePending(Mlt::Producer& producer)
+bool ProxyManager::filePending(Mlt::Producer &producer)
 {
     QDir proxyDir(Settings.proxyFolder());
     QDir projectDir(MLT.projectFolder());
@@ -419,7 +458,7 @@ bool ProxyManager::filePending(Mlt::Producer& producer)
     return (projectDir.cd(kProxySubfolder) && projectDir.exists(fileName)) || proxyDir.exists(fileName);
 }
 
-bool ProxyManager::isValidImage(Mlt::Producer& producer)
+bool ProxyManager::isValidImage(Mlt::Producer &producer)
 {
     QString service = QString::fromLatin1(producer.get("mlt_service"));
     if ((service == "qimage" || service == "pixbuf") && !producer.get_int(kShotcutSequenceProperty)) {
@@ -444,39 +483,50 @@ bool ProxyManager::isValidVideo(Mlt::Producer producer)
         producer.set("video_index", video_index);
     }
     if (service == "avformat") {
-        QString key = QString("meta.media.%1.codec.pix_fmt").arg(video_index);
+        QString key = QStringLiteral("meta.media.%1.codec.pix_fmt").arg(video_index);
         QString pix_fmt = QString::fromLatin1(producer.get(key.toLatin1().constData()));
         // Cover art is usually 90000 fps and should not be proxied
-        key = QString("meta.media.%1.codec.frame_rate").arg(video_index);
+        key = QStringLiteral("meta.media.%1.codec.frame_rate").arg(video_index);
         QString frame_rate = producer.get(key.toLatin1().constData());
-        key = QString("meta.media.%1.codec.name").arg(video_index);
+        key = QStringLiteral("meta.media.%1.codec.name").arg(video_index);
         QString codec_name = producer.get(key.toLatin1().constData());
         bool coverArt = codec_name == "mjpeg" && frame_rate == "90000";
-        key = QString("meta.attr.%1.stream.alpha_mode.markup").arg(video_index);
+        key = QStringLiteral("meta.attr.%1.stream.alpha_mode.markup").arg(video_index);
         bool alpha_mode = producer.get_int(key.toLatin1().constData());
-        LOG_DEBUG() << "pix_fmt =" << pix_fmt << " codec.frame_rate =" << frame_rate << " alpha_mode =" << alpha_mode;
+        LOG_DEBUG() << "pix_fmt =" << pix_fmt << " codec.frame_rate =" << frame_rate << " alpha_mode =" <<
+                    alpha_mode;
         return !kPixFmtsWithAlpha.contains(pix_fmt) && !alpha_mode && !coverArt;
     }
     return false;
 }
 
 // Returns true if the producer exists and was updated with proxy info
-bool ProxyManager::generateIfNotExists(Mlt::Producer& producer, bool replace)
+bool ProxyManager::generateIfNotExists(Mlt::Producer &producer, bool replace)
 {
-    if (Settings.proxyEnabled() && producer.is_valid() && !producer.get_int(kDisableProxyProperty) && !producer.get_int(kIsProxyProperty)) {
+    if (Settings.proxyEnabled() && producer.is_valid() && !producer.get_int(kDisableProxyProperty)
+            && !producer.get_int(kIsProxyProperty)) {
         if (ProxyManager::fileExists(producer)) {
             QString service = QString::fromLatin1(producer.get("mlt_service"));
             QDir projectDir(MLT.projectFolder());
-            QString fileName;
+            QString fileName = Util::getHash(producer) + kProxyVideoExtension;
+            QDir proxyDir(Settings.proxyFolder());
             if (service.startsWith("avformat")) {
                 auto gopro = GoProProxyFilePath(producer.get("resource"));
-                if (QFile::exists(gopro)) {
-                    producer.set(kIsProxyProperty, 1);
-                    producer.set(kOriginalResourceProperty, producer.get("resource"));
-                    producer.set("resource", gopro.toUtf8().constData());
-                    return true;
-                } else {
-                    fileName = Util::getHash(producer) + kProxyVideoExtension;
+                auto dji = DJIProxyFilePath(producer.get("resource"));
+                if (!projectDir.exists(fileName) && !proxyDir.exists(fileName)) {
+                    if (QFile::exists(gopro)) {
+                        producer.set(kIsProxyProperty, 1);
+                        producer.set(kMetaProxyProperty, 1);
+                        producer.set(kOriginalResourceProperty, producer.get("resource"));
+                        producer.set("resource", gopro.toUtf8().constData());
+                        return true;
+                    } else if (QFile::exists(dji)) {
+                        producer.set(kIsProxyProperty, 1);
+                        producer.set(kMetaProxyProperty, 1);
+                        producer.set(kOriginalResourceProperty, producer.get("resource"));
+                        producer.set("resource", dji.toUtf8().constData());
+                        return true;
+                    }
                 }
             } else if (isValidImage(producer)) {
                 fileName = Util::getHash(producer) + kProxyImageExtension;
@@ -484,12 +534,12 @@ bool ProxyManager::generateIfNotExists(Mlt::Producer& producer, bool replace)
                 return false;
             }
             producer.set(kIsProxyProperty, 1);
+            producer.set(kMetaProxyProperty, 1);
             producer.set(kOriginalResourceProperty, producer.get("resource"));
             if (projectDir.exists(fileName)) {
                 ::utime(projectDir.filePath(fileName).toUtf8().constData(), nullptr);
                 producer.set("resource", projectDir.filePath(fileName).toUtf8().constData());
             } else {
-                QDir proxyDir(Settings.proxyFolder());
                 ::utime(proxyDir.filePath(fileName).toUtf8().constData(), nullptr);
                 producer.set("resource", proxyDir.filePath(fileName).toUtf8().constData());
             }
@@ -499,16 +549,20 @@ bool ProxyManager::generateIfNotExists(Mlt::Producer& producer, bool replace)
                 // Tag this producer so we do not try to generate proxy again in this session
                 delete producer.get_frame();
                 auto threshold = qRound(kProxyResolutionRatio * resolution());
-                LOG_DEBUG() << producer.get_int("meta.media.width") << "x" << producer.get_int("meta.media.height") << "threshold" << threshold;
-                if (producer.get_int("meta.media.width") > threshold && producer.get_int("meta.media.height") > threshold) {
+                LOG_DEBUG() << producer.get_int("meta.media.width") << "x" << producer.get_int("meta.media.height")
+                            << "threshold" << threshold;
+                if (producer.get_int("meta.media.width") > threshold
+                        && producer.get_int("meta.media.height") > threshold) {
                     ProxyManager::generateVideoProxy(producer, MLT.fullRange(producer), Automatic, QPoint(), replace);
                 }
             } else if (isValidImage(producer)) {
                 // Tag this producer so we do not try to generate proxy again in this session
                 delete producer.get_frame();
                 auto threshold = qRound(kProxyResolutionRatio * resolution());
-                LOG_DEBUG() << producer.get_int("meta.media.width") << "x" << producer.get_int("meta.media.height") << "threshold" << threshold;
-                if (producer.get_int("meta.media.width") > threshold && producer.get_int("meta.media.height") > threshold) {
+                LOG_DEBUG() << producer.get_int("meta.media.width") << "x" << producer.get_int("meta.media.height")
+                            << "threshold" << threshold;
+                if (producer.get_int("meta.media.width") > threshold
+                        && producer.get_int("meta.media.height") > threshold) {
                     ProxyManager::generateImageProxy(producer, replace);
                 }
             }
@@ -517,29 +571,29 @@ bool ProxyManager::generateIfNotExists(Mlt::Producer& producer, bool replace)
     return false;
 }
 
-const char* ProxyManager::videoFilenameExtension()
+const char *ProxyManager::videoFilenameExtension()
 {
     return kProxyVideoExtension;
 }
 
-const char* ProxyManager::pendingVideoExtension()
+const char *ProxyManager::pendingVideoExtension()
 {
     return kProxyPendingVideoExtension;
 }
 
-const char* ProxyManager::imageFilenameExtension()
+const char *ProxyManager::imageFilenameExtension()
 {
     return kProxyImageExtension;
 }
 
-const char* ProxyManager::pendingImageExtension()
+const char *ProxyManager::pendingImageExtension()
 {
     return kProxyImageExtension;
 }
 
 int ProxyManager::resolution()
 {
-    return Settings.playerPreviewScale()? Settings.playerPreviewScale() : kFallbackProxyResolution;
+    return Settings.playerPreviewScale() ? Settings.playerPreviewScale() : kFallbackProxyResolution;
 }
 
 class FindNonProxyProducersParser : public Mlt::Parser
@@ -551,41 +605,94 @@ private:
 public:
     FindNonProxyProducersParser() : Mlt::Parser() {}
 
-    QList<Mlt::Producer>& producers() { return m_producers; }
+    QList<Mlt::Producer> &producers()
+    {
+        return m_producers;
+    }
 
-    int on_start_filter(Mlt::Filter*) { return 0; }
-    int on_start_producer(Mlt::Producer* producer) {
+    int on_start_filter(Mlt::Filter *)
+    {
+        return 0;
+    }
+    int on_start_producer(Mlt::Producer *producer)
+    {
         if (!producer->parent().get_int(kIsProxyProperty))
             m_producers << Mlt::Producer(producer);
         return 0;
     }
-    int on_end_producer(Mlt::Producer*) { return 0; }
-    int on_start_playlist(Mlt::Playlist*) { return 0; }
-    int on_end_playlist(Mlt::Playlist*) { return 0; }
-    int on_start_tractor(Mlt::Tractor*) { return 0; }
-    int on_end_tractor(Mlt::Tractor*) { return 0; }
-    int on_start_multitrack(Mlt::Multitrack*) { return 0; }
-    int on_end_multitrack(Mlt::Multitrack*) { return 0; }
-    int on_start_track() { return 0; }
-    int on_end_track() { return 0; }
-    int on_end_filter(Mlt::Filter*) { return 0; }
-    int on_start_transition(Mlt::Transition*) { return 0; }
-    int on_end_transition(Mlt::Transition*) { return 0; }
-    int on_start_chain(Mlt::Chain* chain) {
+    int on_end_producer(Mlt::Producer *)
+    {
+        return 0;
+    }
+    int on_start_playlist(Mlt::Playlist *)
+    {
+        return 0;
+    }
+    int on_end_playlist(Mlt::Playlist *)
+    {
+        return 0;
+    }
+    int on_start_tractor(Mlt::Tractor *)
+    {
+        return 0;
+    }
+    int on_end_tractor(Mlt::Tractor *)
+    {
+        return 0;
+    }
+    int on_start_multitrack(Mlt::Multitrack *)
+    {
+        return 0;
+    }
+    int on_end_multitrack(Mlt::Multitrack *)
+    {
+        return 0;
+    }
+    int on_start_track()
+    {
+        return 0;
+    }
+    int on_end_track()
+    {
+        return 0;
+    }
+    int on_end_filter(Mlt::Filter *)
+    {
+        return 0;
+    }
+    int on_start_transition(Mlt::Transition *)
+    {
+        return 0;
+    }
+    int on_end_transition(Mlt::Transition *)
+    {
+        return 0;
+    }
+    int on_start_chain(Mlt::Chain *chain)
+    {
         if (!chain->parent().get_int(kIsProxyProperty))
             m_producers << Mlt::Producer(chain);
         return 0;
     }
-    int on_end_chain(Mlt::Chain*) { return 0; }
-    int on_start_link(Mlt::Link*) { return 0; }
-    int on_end_link(Mlt::Link*) { return 0; }
+    int on_end_chain(Mlt::Chain *)
+    {
+        return 0;
+    }
+    int on_start_link(Mlt::Link *)
+    {
+        return 0;
+    }
+    int on_end_link(Mlt::Link *)
+    {
+        return 0;
+    }
 };
 
-void ProxyManager::generateIfNotExistsAll(Mlt::Producer& producer)
+void ProxyManager::generateIfNotExistsAll(Mlt::Producer &producer)
 {
     FindNonProxyProducersParser parser;
     parser.start(producer);
-    for (auto& clip : parser.producers()) {
+    for (auto &clip : parser.producers()) {
         generateIfNotExists(clip, false /* replace */);
     }
 }
@@ -602,7 +709,7 @@ bool ProxyManager::removePending()
     if (dir.exists()) {
         dir.setNameFilters(QStringList() << "*.pending.*");
         dir.setFilter(QDir::Files | QDir::NoDotAndDotDot | QDir::Writable);
-        for (const auto& s : dir.entryList()) {
+        for (const auto &s : dir.entryList()) {
             LOG_INFO() << "removing" << dir.filePath(s);
             foundAny |= QFile::remove(dir.filePath(s));
         }
@@ -611,12 +718,21 @@ bool ProxyManager::removePending()
     return foundAny;
 }
 
-QString ProxyManager::GoProProxyFilePath(const QString& resource)
+QString ProxyManager::GoProProxyFilePath(const QString &resource)
 {
     auto fi = QFileInfo(resource);
     auto base = fi.baseName();
     base = "GL" + base.mid(2);
     auto result = fi.absoluteDir().filePath(base + kGoProProxyVideoExtension);
+    LOG_DEBUG() << result;
+    return result;
+}
+
+QString ProxyManager::DJIProxyFilePath(const QString &resource)
+{
+    auto fi = QFileInfo(resource);
+    auto base = fi.baseName();
+    auto result = fi.absoluteDir().filePath(base + kDJIProxyVideoExtension);
     LOG_DEBUG() << result;
     return result;
 }

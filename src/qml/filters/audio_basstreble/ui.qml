@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2021 Meltytech, LLC
+ * Copyright (c) 2015-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,39 +14,41 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
     id: background
+
+    function setControls() {
+        sliderLow.value = filter.getDouble('0');
+        sliderMid.value = filter.getDouble('1');
+        sliderHigh.value = filter.getDouble('2');
+    }
+
     width: 350
     height: 200
-
-    SystemPalette { id: activePalette }
-
     Component.onCompleted: {
         if (filter.isNew) {
             // Set default parameter values
-            filter.set('0', 0)
-            filter.set('1', 0)
-            filter.set('2', 0)
-            filter.set('wetness', 1.0)
-            filter.savePreset(preset.parameters)
+            filter.set('0', 0);
+            filter.set('1', 0);
+            filter.set('2', 0);
+            filter.set('wetness', 1);
+            filter.savePreset(preset.parameters);
         }
-        setControls()
+        setControls();
     }
 
-    function setControls() {
-        sliderLow.value = filter.getDouble('0')
-        sliderMid.value = filter.getDouble('1')
-        sliderHigh.value = filter.getDouble('2')
+    SystemPalette {
+        id: activePalette
     }
 
     Rectangle {
         id: topLine
+
         height: 1
         width: lowColumn.width * 3 + 20
         color: activePalette.text
@@ -58,12 +60,12 @@ Item {
             top: gridLayout.top
             topMargin: presetLayout.height + gridLayout.anchors.margins
         }
-
     }
 
     Label {
         text: '+12 dB'
         font.pointSize: bassLabel.font.pointSize - 1
+
         anchors {
             right: topLine.left
             rightMargin: 8
@@ -83,11 +85,11 @@ Item {
             top: topLine.top
             topMargin: sliderLow.height * 0.25 + 1
         }
-
     }
 
     Rectangle {
         id: zeroLine
+
         height: 2
         width: lowColumn.width * 3 + gridLayout.anchors.margins * 2
         color: activePalette.text
@@ -99,12 +101,12 @@ Item {
             top: topLine.top
             topMargin: sliderLow.height * 0.5 - 4
         }
-
     }
 
     Label {
         text: '0 dB'
         font.pointSize: bassLabel.font.pointSize - 1
+
         anchors {
             right: zeroLine.left
             rightMargin: 8
@@ -124,11 +126,11 @@ Item {
             top: topLine.top
             topMargin: sliderLow.height * 0.75 - 8
         }
-
     }
 
     Rectangle {
         id: bottomLine
+
         height: 1
         width: lowColumn.width * 3 + gridLayout.anchors.margins * 2
         color: activePalette.text
@@ -140,12 +142,12 @@ Item {
             bottom: gridLayout.bottom
             bottomMargin: bassLabel.height + gridLayout.anchors.margins
         }
-
     }
 
     Label {
         text: '-12 dB'
         font.pointSize: bassLabel.font.pointSize - 1
+
         anchors {
             right: bottomLine.left
             rightMargin: 8
@@ -155,21 +157,27 @@ Item {
 
     GridLayout {
         id: gridLayout
+
+        property double leftMargin: (width - lowColumn.width * 3 - columnSpacing * 2) / 2
+
         anchors.fill: parent
         anchors.margins: 8
         columns: 5
-        property double leftMargin: (width - lowColumn.width * 3 - columnSpacing * 2) / 2
 
         RowLayout {
             id: presetLayout
+
             spacing: 8
             Layout.columnSpan: parent.columns
+
             Label {
                 text: qsTr('Preset')
                 Layout.alignment: Qt.AlignRight
             }
+
             Shotcut.Preset {
                 id: preset
+
                 parameters: ['0', '1', '2']
                 onPresetSelected: setControls()
             }
@@ -181,11 +189,13 @@ Item {
 
         ColumnLayout {
             id: lowColumn
+
             Layout.minimumWidth: 80
             Layout.alignment: Qt.AlignHCenter
 
             Slider {
                 id: sliderLow
+
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillHeight: true
                 orientation: Qt.Vertical
@@ -193,13 +203,21 @@ Item {
                 to: 12
                 value: filter.getDouble('0')
                 onValueChanged: filter.set('0', value)
-                Shotcut.HoverTip { text: '%1 dB'.arg(Math.round(parent.value * 10) / 10) }
+
+                Shotcut.HoverTip {
+                    text: '%1 dB'.arg(Math.round(parent.value * 10) / 10)
+                }
             }
+
             Label {
                 id: bassLabel
+
                 text: qsTr('Bass')
                 Layout.alignment: Qt.AlignHCenter
-                Shotcut.HoverTip { text: '100 Hz' }
+
+                Shotcut.HoverTip {
+                    text: '100 Hz'
+                }
             }
         }
 
@@ -209,6 +227,7 @@ Item {
 
             Slider {
                 id: sliderMid
+
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillHeight: true
                 orientation: Qt.Vertical
@@ -216,12 +235,19 @@ Item {
                 to: 12
                 value: filter.getDouble('1')
                 onValueChanged: filter.set('1', value)
-                Shotcut.HoverTip { text: '%1 dB'.arg(Math.round(parent.value * 10) / 10) }
+
+                Shotcut.HoverTip {
+                    text: '%1 dB'.arg(Math.round(parent.value * 10) / 10)
+                }
             }
+
             Label {
                 text: qsTr('Middle', 'Bass & Treble audio filter')
                 Layout.alignment: Qt.AlignHCenter
-                Shotcut.HoverTip { text: '1000 Hz' }
+
+                Shotcut.HoverTip {
+                    text: '1000 Hz'
+                }
             }
         }
 
@@ -231,6 +257,7 @@ Item {
 
             Slider {
                 id: sliderHigh
+
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillHeight: true
                 orientation: Qt.Vertical
@@ -238,12 +265,19 @@ Item {
                 to: 12
                 value: filter.getDouble('2')
                 onValueChanged: filter.set('2', value)
-                Shotcut.HoverTip { text: '%1 dB'.arg(Math.round(parent.value * 10) / 10) }
+
+                Shotcut.HoverTip {
+                    text: '%1 dB'.arg(Math.round(parent.value * 10) / 10)
+                }
             }
+
             Label {
                 text: qsTr('Treble')
                 Layout.alignment: Qt.AlignHCenter
-                Shotcut.HoverTip { text: '10000 Hz' }
+
+                Shotcut.HoverTip {
+                    text: '10000 Hz'
+                }
             }
         }
 

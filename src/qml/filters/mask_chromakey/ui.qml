@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,11 +14,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
     property string colorParam: 'filter.0'
@@ -26,21 +25,22 @@ Item {
     property string distanceParam: 'filter.1'
     property double distanceDefault: 28.8
     property var defaultParameters: [colorParam, distanceParam]
+
     width: 350
     height: 50
     Component.onCompleted: {
-        presetItem.parameters = defaultParameters
-        filter.set('filter', 'frei0r.bluescreen0r')
-        filter.set('filter.2', 1)
-        filter.set('filter.threads', 0)
+        presetItem.parameters = defaultParameters;
+        filter.set('filter', 'frei0r.bluescreen0r');
+        filter.set('filter.2', 1);
+        filter.set('filter.threads', 0);
         if (filter.isNew) {
             // Set default parameter values
-            filter.set(colorParam, colorDefault)
-            filter.set(distanceParam, distanceDefault / 100)
-            filter.savePreset(defaultParameters)
+            filter.set(colorParam, colorDefault);
+            filter.set(distanceParam, distanceDefault / 100);
+            filter.savePreset(defaultParameters);
         }
-        colorPicker.value = filter.get(colorParam)
-        distanceSlider.value = filter.getDouble(distanceParam) * 100
+        colorPicker.value = filter.get(colorParam);
+        distanceSlider.value = filter.getDouble(distanceParam) * 100;
     }
 
     GridLayout {
@@ -52,12 +52,14 @@ Item {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: presetItem
+
             Layout.columnSpan: 2
             onPresetSelected: {
-                colorPicker.value = filter.get(colorParam)
-                distanceSlider.value = filter.getDouble(distanceParam) * 100
+                colorPicker.value = filter.get(colorParam);
+                distanceSlider.value = filter.getDouble(distanceParam) * 100;
             }
         }
 
@@ -66,15 +68,17 @@ Item {
             text: qsTr('Key color')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.ColorPicker {
             id: colorPicker
+
             onValueChanged: {
-                filter.set(colorParam, value)
-                filter.set('disable', 0)
+                filter.set(colorParam, value);
             }
             onPickStarted: filter.set('disable', 1)
             onPickCancelled: filter.set('disable', 0)
         }
+
         Shotcut.UndoButton {
             onClicked: colorPicker.value = colorDefault
         }
@@ -84,8 +88,10 @@ Item {
             text: qsTr('Distance')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: distanceSlider
+
             minimumValue: 0
             maximumValue: 100
             decimals: 1
@@ -93,6 +99,7 @@ Item {
             value: filter.getDouble(distanceParam) * 100
             onValueChanged: filter.set(distanceParam, value / 100)
         }
+
         Shotcut.UndoButton {
             onClicked: distanceSlider.value = distanceDefault
         }

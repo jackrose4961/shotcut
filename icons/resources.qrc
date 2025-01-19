@@ -1,6 +1,43 @@
 <RCC>
     <qresource prefix="/icons">
+        <file>dark/32x32/4-direction.png</file>
         <file>dark/32x32/audio-meter.png</file>
+        <file>dark/32x32/keyframe-ease-in.png</file>
+        <file>dark/32x32/keyframe-ease-inout.png</file>
+        <file>dark/32x32/keyframe-ease-out.png</file>
+        <file>dark/32x32/keyframe-hold.png</file>
+        <file>dark/32x32/keyframe-linear.png</file>
+        <file>dark/32x32/keyframe-smooth.png</file>
+        <file>dark/32x32/ease-in-sinu.png</file>
+        <file>dark/32x32/ease-in-quad.png</file>
+        <file>dark/32x32/ease-in-cube.png</file>
+        <file>dark/32x32/ease-in-quar.png</file>
+        <file>dark/32x32/ease-in-quin.png</file>
+        <file>dark/32x32/ease-in-expo.png</file>
+        <file>dark/32x32/ease-in-circ.png</file>
+        <file>dark/32x32/ease-in-back.png</file>
+        <file>dark/32x32/ease-in-elas.png</file>
+        <file>dark/32x32/ease-in-boun.png</file>
+        <file>dark/32x32/ease-inout-sinu.png</file>
+        <file>dark/32x32/ease-inout-quad.png</file>
+        <file>dark/32x32/ease-inout-cube.png</file>
+        <file>dark/32x32/ease-inout-quar.png</file>
+        <file>dark/32x32/ease-inout-quin.png</file>
+        <file>dark/32x32/ease-inout-expo.png</file>
+        <file>dark/32x32/ease-inout-circ.png</file>
+        <file>dark/32x32/ease-inout-back.png</file>
+        <file>dark/32x32/ease-inout-elas.png</file>
+        <file>dark/32x32/ease-inout-boun.png</file>
+        <file>dark/32x32/ease-out-sinu.png</file>
+        <file>dark/32x32/ease-out-quad.png</file>
+        <file>dark/32x32/ease-out-cube.png</file>
+        <file>dark/32x32/ease-out-quar.png</file>
+        <file>dark/32x32/ease-out-quin.png</file>
+        <file>dark/32x32/ease-out-expo.png</file>
+        <file>dark/32x32/ease-out-circ.png</file>
+        <file>dark/32x32/ease-out-back.png</file>
+        <file>dark/32x32/ease-out-elas.png</file>
+        <file>dark/32x32/ease-out-boun.png</file>
         <file>dark/32x32/edit-undo.png</file>
         <file>dark/32x32/format-justify-fill.png</file>
         <file>dark/32x32/list-add.png</file>
@@ -9,6 +46,9 @@
         <file>dark/32x32/color-picker.png</file>
         <file>dark/32x32/cpu.png</file>
         <file>dark/32x32/dialog-information.png</file>
+        <file>dark/32x32/document-edit.png</file>
+        <file>dark/32x32/document-export.png</file>
+        <file>dark/32x32/document-import.png</file>
         <file>dark/32x32/document-open-recent.png</file>
         <file>dark/32x32/document-open.png</file>
         <file>dark/32x32/document-save.png</file>
@@ -17,6 +57,7 @@
         <file>dark/32x32/media-playback-pause.png</file>
         <file>dark/32x32/media-playback-start.png</file>
         <file>dark/32x32/media-playback-stop.png</file>
+        <file>dark/32x32/media-playback-loop.png</file>
         <file>dark/32x32/media-record.png</file>
         <file>dark/32x32/media-seek-backward.png</file>
         <file>dark/32x32/media-seek-forward.png</file>
@@ -33,8 +74,45 @@
         <file>dark/32x32/view-media-playlist.png</file>
         <file>dark/32x32/window-close.png</file>
         <file>dark/index.theme</file>
+        <file>light/32x32/4-direction.png</file>
         <file>light/32x32/audio-meter.png</file>
         <file>light/32x32/edit-undo.png</file>
+        <file>light/32x32/keyframe-ease-in.png</file>
+        <file>light/32x32/keyframe-ease-inout.png</file>
+        <file>light/32x32/keyframe-ease-out.png</file>
+        <file>light/32x32/keyframe-hold.png</file>
+        <file>light/32x32/keyframe-linear.png</file>
+        <file>light/32x32/keyframe-smooth.png</file>
+        <file>light/32x32/ease-in-sinu.png</file>
+        <file>light/32x32/ease-in-quad.png</file>
+        <file>light/32x32/ease-in-cube.png</file>
+        <file>light/32x32/ease-in-quar.png</file>
+        <file>light/32x32/ease-in-quin.png</file>
+        <file>light/32x32/ease-in-expo.png</file>
+        <file>light/32x32/ease-in-circ.png</file>
+        <file>light/32x32/ease-in-back.png</file>
+        <file>light/32x32/ease-in-elas.png</file>
+        <file>light/32x32/ease-in-boun.png</file>
+        <file>light/32x32/ease-inout-sinu.png</file>
+        <file>light/32x32/ease-inout-quad.png</file>
+        <file>light/32x32/ease-inout-cube.png</file>
+        <file>light/32x32/ease-inout-quar.png</file>
+        <file>light/32x32/ease-inout-quin.png</file>
+        <file>light/32x32/ease-inout-expo.png</file>
+        <file>light/32x32/ease-inout-circ.png</file>
+        <file>light/32x32/ease-inout-back.png</file>
+        <file>light/32x32/ease-inout-elas.png</file>
+        <file>light/32x32/ease-inout-boun.png</file>
+        <file>light/32x32/ease-out-sinu.png</file>
+        <file>light/32x32/ease-out-quad.png</file>
+        <file>light/32x32/ease-out-cube.png</file>
+        <file>light/32x32/ease-out-quar.png</file>
+        <file>light/32x32/ease-out-quin.png</file>
+        <file>light/32x32/ease-out-expo.png</file>
+        <file>light/32x32/ease-out-circ.png</file>
+        <file>light/32x32/ease-out-back.png</file>
+        <file>light/32x32/ease-out-elas.png</file>
+        <file>light/32x32/ease-out-boun.png</file>
         <file>light/32x32/format-justify-fill.png</file>
         <file>light/32x32/list-add.png</file>
         <file>light/32x32/list-remove.png</file>
@@ -42,6 +120,9 @@
         <file>light/32x32/color-picker.png</file>
         <file>light/32x32/cpu.png</file>
         <file>light/32x32/dialog-information.png</file>
+        <file>light/32x32/document-edit.png</file>
+        <file>light/32x32/document-export.png</file>
+        <file>light/32x32/document-import.png</file>
         <file>light/32x32/document-open-recent.png</file>
         <file>light/32x32/document-open.png</file>
         <file>light/32x32/document-save.png</file>
@@ -50,6 +131,7 @@
         <file>light/32x32/media-playback-pause.png</file>
         <file>light/32x32/media-playback-start.png</file>
         <file>light/32x32/media-playback-stop.png</file>
+        <file>light/32x32/media-playback-loop.png</file>
         <file>light/32x32/media-record.png</file>
         <file>light/32x32/media-seek-backward.png</file>
         <file>light/32x32/media-seek-forward.png</file>
@@ -66,11 +148,51 @@
         <file>light/32x32/view-media-playlist.png</file>
         <file>light/32x32/window-close.png</file>
         <file>light/index.theme</file>
+        <file>oxygen/32x32/actions/4-direction.png</file>
+        <file>oxygen/32x32/actions/keyframe-ease-in.png</file>
+        <file>oxygen/32x32/actions/keyframe-ease-inout.png</file>
+        <file>oxygen/32x32/actions/keyframe-ease-out.png</file>
+        <file>oxygen/32x32/actions/keyframe-hold.png</file>
+        <file>oxygen/32x32/actions/keyframe-linear.png</file>
+        <file>oxygen/32x32/actions/keyframe-smooth.png</file>
+        <file>oxygen/32x32/actions/ease-in-sinu.png</file>
+        <file>oxygen/32x32/actions/ease-in-quad.png</file>
+        <file>oxygen/32x32/actions/ease-in-cube.png</file>
+        <file>oxygen/32x32/actions/ease-in-quar.png</file>
+        <file>oxygen/32x32/actions/ease-in-quin.png</file>
+        <file>oxygen/32x32/actions/ease-in-expo.png</file>
+        <file>oxygen/32x32/actions/ease-in-circ.png</file>
+        <file>oxygen/32x32/actions/ease-in-back.png</file>
+        <file>oxygen/32x32/actions/ease-in-elas.png</file>
+        <file>oxygen/32x32/actions/ease-in-boun.png</file>
+        <file>oxygen/32x32/actions/ease-inout-sinu.png</file>
+        <file>oxygen/32x32/actions/ease-inout-quad.png</file>
+        <file>oxygen/32x32/actions/ease-inout-cube.png</file>
+        <file>oxygen/32x32/actions/ease-inout-quar.png</file>
+        <file>oxygen/32x32/actions/ease-inout-quin.png</file>
+        <file>oxygen/32x32/actions/ease-inout-expo.png</file>
+        <file>oxygen/32x32/actions/ease-inout-circ.png</file>
+        <file>oxygen/32x32/actions/ease-inout-back.png</file>
+        <file>oxygen/32x32/actions/ease-inout-elas.png</file>
+        <file>oxygen/32x32/actions/ease-inout-boun.png</file>
+        <file>oxygen/32x32/actions/ease-out-sinu.png</file>
+        <file>oxygen/32x32/actions/ease-out-quad.png</file>
+        <file>oxygen/32x32/actions/ease-out-cube.png</file>
+        <file>oxygen/32x32/actions/ease-out-quar.png</file>
+        <file>oxygen/32x32/actions/ease-out-quin.png</file>
+        <file>oxygen/32x32/actions/ease-out-expo.png</file>
+        <file>oxygen/32x32/actions/ease-out-circ.png</file>
+        <file>oxygen/32x32/actions/ease-out-back.png</file>
+        <file>oxygen/32x32/actions/ease-out-elas.png</file>
+        <file>oxygen/32x32/actions/ease-out-boun.png</file>
         <file>oxygen/32x32/actions/edit-undo.png</file>
         <file>oxygen/32x32/actions/format-justify-fill.png</file>
         <file>oxygen/32x32/actions/list-add.png</file>
         <file>oxygen/32x32/actions/list-remove.png</file>
         <file>oxygen/32x32/actions/player-volume.png</file>
+        <file>oxygen/32x32/actions/document-edit.png</file>
+        <file>oxygen/32x32/actions/document-export.png</file>
+        <file>oxygen/32x32/actions/document-import.png</file>
         <file>oxygen/32x32/actions/document-open-recent.png</file>
         <file>oxygen/32x32/actions/document-open.png</file>
         <file>oxygen/32x32/actions/document-save.png</file>
@@ -80,6 +202,7 @@
         <file>oxygen/32x32/actions/media-playback-pause.png</file>
         <file>oxygen/32x32/actions/media-playback-start.png</file>
         <file>oxygen/32x32/actions/media-playback-stop.png</file>
+        <file>oxygen/32x32/actions/media-playback-loop.png</file>
         <file>oxygen/32x32/actions/media-record.png</file>
         <file>oxygen/32x32/actions/media-seek-backward.png</file>
         <file>oxygen/32x32/actions/media-seek-forward.png</file>
@@ -220,7 +343,9 @@
         <file>light/32x32/chronometer.png</file>
         <file>dark/32x32/chronometer.png</file>
         <file>dark/32x32/split.png</file>
+        <file>dark/32x32/subtitle.png</file>
         <file>light/32x32/split.png</file>
+        <file>light/32x32/subtitle.png</file>
         <file>light/32x32/merge.png</file>
         <file>dark/32x32/merge.png</file>
         <file>dark/32x32/layer-visible-on.png</file>
@@ -232,6 +357,7 @@
         <file>light/32x32/layer-visible-off.png</file>
         <file>light/32x32/layer-visible-on.png</file>
         <file>oxygen/32x32/actions/split.png</file>
+        <file>oxygen/32x32/actions/subtitle.png</file>
         <file>oxygen/32x32/actions/merge.png</file>
         <file>oxygen/32x32/actions/layer-visible-off.png</file>
         <file>oxygen/32x32/actions/layer-visible-on.png</file>
@@ -276,5 +402,32 @@
         <file>oxygen/32x32/actions/marker.png</file>
         <file>light/32x32/marker.png</file>
         <file>dark/32x32/marker.png</file>
+        <file>oxygen/32x32/devices/audio-input-microphone.png</file>
+        <file>light/32x32/audio-input-microphone.png</file>
+        <file>dark/32x32/audio-input-microphone.png</file>
+        <file>oxygen/32x32/places/server-database.png</file>
+        <file>light/32x32/server-database.png</file>
+        <file>dark/32x32/server-database.png</file>
+        <file>oxygen/32x32/actions/speech-to-text.png</file>
+        <file>light/32x32/speech-to-text.png</file>
+        <file>dark/32x32/speech-to-text.png</file>
+        <file>oxygen/32x32/actions/folder-new.png</file>
+        <file>light/32x32/folder-new.png</file>
+        <file>dark/32x32/folder-new.png</file>
+        <file>oxygen/32x32/actions/quickopen.png</file>
+        <file>light/32x32/quickopen.png</file>
+        <file>dark/32x32/quickopen.png</file>
+        <file>oxygen/32x32/actions/view-choose.png</file>
+        <file>light/32x32/view-choose.png</file>
+        <file>dark/32x32/view-choose.png</file>
+        <file>oxygen/32x32/places/folder.png</file>
+        <file>light/32x32/folder.png</file>
+        <file>dark/32x32/folder.png</file>
+        <file>oxygen/32x32/apps/system-file-manager.png</file>
+        <file>light/32x32/system-file-manager.png</file>
+        <file>dark/32x32/system-file-manager.png</file>
+        <file>oxygen/32x32/actions/view-refresh.png</file>
+        <file>light/32x32/view-refresh.png</file>
+        <file>dark/32x32/view-refresh.png</file>
     </qresource>
 </RCC>

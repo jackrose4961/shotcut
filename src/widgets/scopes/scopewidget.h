@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Meltytech, LLC
- * Author: Brian Matherly <code@brianmatherly.com>
+ * Copyright (c) 2015-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,7 +56,7 @@
 class ScopeWidget : public QWidget
 {
     Q_OBJECT
-    
+
 public:
     /*!
       Constructs an ScopeWidget.
@@ -65,7 +64,7 @@ public:
       The \a name will be set as the objectName and should be initialized by
       subclasses.
     */
-    explicit ScopeWidget(const QString& name);
+    explicit ScopeWidget(const QString &name);
 
     //! Destructs a ScopeWidget.
     virtual ~ScopeWidget();
@@ -84,7 +83,11 @@ public:
 
 public slots:
     //! Provides a new frame to the scope. Should be called by the application.
-    virtual void onNewFrame(const SharedFrame& frame) Q_DECL_FINAL;
+    virtual void onNewFrame(const SharedFrame &frame) Q_DECL_FINAL;
+
+signals:
+    //! Tells the widget it has been moved. Should be called by the application.
+    void moved();
 
 protected:
     /*!
@@ -101,7 +104,7 @@ protected:
       protect any members that may be accessed concurrently by the refresh
       thread and the GUI thread.
     */
-    virtual void refreshScope(const QSize& size, bool full) = 0;
+    virtual void refreshScope(const QSize &size, bool full) = 0;
 
     /*!
       Stores frames received by onNewFrame().
@@ -111,8 +114,8 @@ protected:
     */
     DataQueue<SharedFrame> m_queue;
 
-    void resizeEvent(QResizeEvent*) Q_DECL_OVERRIDE;
-    void changeEvent(QEvent*) Q_DECL_OVERRIDE;
+    void resizeEvent(QResizeEvent *) Q_DECL_OVERRIDE;
+    void changeEvent(QEvent *) Q_DECL_OVERRIDE;
 
 private:
     Q_INVOKABLE virtual void onRefreshThreadComplete() Q_DECL_FINAL;

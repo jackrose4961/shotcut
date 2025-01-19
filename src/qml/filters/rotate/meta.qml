@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
@@ -7,18 +7,16 @@ Metadata {
     name: qsTr("Rotate and Scale")
     mlt_service: "affine"
     qml: "ui.qml"
-    isFavorite: true
     isHidden: true
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
         simpleProperties: ['transition.fix_rotate_x', 'transition.scale_x']
-        minimumVersion: '3'
         parameters: [
             Parameter {
                 name: qsTr('Rotation')
                 property: 'transition.fix_rotate_x'
-                isSimple: true
                 isCurve: true
                 minimum: -360
                 maximum: 360
@@ -27,7 +25,6 @@ Metadata {
                 name: qsTr('Scale')
                 property: 'transition.scale_x'
                 gangedProperties: ['transition.scale_y']
-                isSimple: true
                 isCurve: true
                 minimum: 0.001
                 maximum: 10

@@ -1,14 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+// SPDX-License-Identifier: GPL-2.0-or-later
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("360: Equirectangular to Stereographic")
+    keywords: qsTr('spherical projection tiny small planet', 'search keywords for the 360: Equirectangular to Stereographic video filter') + ' 360: equirectangular stereographic bigsh0t'
     mlt_service: "frei0r.bigsh0t_eq_to_stereo"
     objectName: "bigsh0t_eq_to_stereo"
     qml: "ui.qml"
     vui: "vui.qml"
+    icon: "icon.webp"
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -17,15 +20,13 @@ Metadata {
             Parameter {
                 name: qsTr('Yaw')
                 property: 'yaw'
-                isSimple: true
                 isCurve: true
                 minimum: -360
                 maximum: 360
             },
             Parameter {
-                name: qsTr('Pitch')
+                name: qsTr('Pitch', 'rotation around the side-to-side axis (roll, pitch, yaw)')
                 property: 'pitch'
-                isSimple: true
                 isCurve: true
                 minimum: -180
                 maximum: 180
@@ -33,23 +34,20 @@ Metadata {
             Parameter {
                 name: qsTr('Roll')
                 property: 'roll'
-                isSimple: true
                 isCurve: true
                 minimum: -180
                 maximum: 180
             },
             Parameter {
-                name: qsTr('FOV')
+                name: qsTr('FOV', 'field of view')
                 property: 'fov'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 180
             },
-			Parameter {
+            Parameter {
                 name: qsTr('Amount')
                 property: 'amount'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 100

@@ -1,13 +1,16 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     objectName: 'spotRemover'
     name: qsTr('Spot Remover')
+    keywords: qsTr('delogo dirt clean watermark', 'search keywords for the Spot Remover video filter') + ' spot remover'
     mlt_service: 'spot_remover'
     qml: 'ui.qml'
     vui: 'vui.qml'
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -16,7 +19,6 @@ Metadata {
             Parameter {
                 name: qsTr('Position / Size')
                 property: 'rect'
-                isSimple: true
                 isRectangle: true
             }
         ]

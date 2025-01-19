@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Meltytech, LLC
- * Author: Dan Dennedy <dan@dennedy.org>
+ * Copyright (c) 2012-2025 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +16,7 @@
  */
 
 #include "abstractproducerwidget.h"
+#include <QWidget>
 
 AbstractProducerWidget::AbstractProducerWidget()
 {
@@ -26,7 +26,7 @@ AbstractProducerWidget::~AbstractProducerWidget()
 {
 }
 
-void AbstractProducerWidget::setProducer(Mlt::Producer* producer)
+void AbstractProducerWidget::setProducer(Mlt::Producer *producer)
 {
     if (producer) {
         loadPreset(*producer);
@@ -34,4 +34,15 @@ void AbstractProducerWidget::setProducer(Mlt::Producer* producer)
     } else {
         m_producer.reset();
     }
+}
+
+bool AbstractProducerWidget::isDevice(const QWidget *widget)
+{
+    auto name = widget->objectName();
+    return "AlsaWidget" == name || "alsaWidget" == name
+           || "AvfoundationProducerWidget" == name || "avfoundationWidget" == name
+           || "DecklinkProducerWidget" == name || "decklinkWidget" == name
+           || "DirectShowVideoWidget" == name || "dshowVideoWidget" == name
+           || "PulseAudioWidget" == name || "pulseWidget" == name
+           || "Video4LinuxWidget" == name || "v4lWidget" == name;
 }

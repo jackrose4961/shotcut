@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2021 Meltytech, LLC
+ * Copyright (c) 2015-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,47 +14,55 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
     property string typeParam: '0'
     property double typeDefault: 0
+
     width: 200
     height: 50
     Component.onCompleted: {
-        filter.set('threads', 0)
-        if (filter.isNew) {
-            filter.set(typeParam, typeDefault)
-        }
-        if (filter.getDouble(typeParam) === 0.0)
-            greenRadioButton.checked = true
+        filter.set('threads', 0);
+        if (filter.isNew)
+            filter.set(typeParam, typeDefault);
+        if (filter.getDouble(typeParam) === 0)
+            greenRadioButton.checked = true;
         else
-            blueRadioButton.checked = true
+            blueRadioButton.checked = true;
     }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 8
 
         RowLayout {
-            ButtonGroup { id: typeGroup }
+            ButtonGroup {
+                id: typeGroup
+            }
+
             RadioButton {
                 id: greenRadioButton
+
                 text: qsTr('Green')
                 ButtonGroup.group: typeGroup
                 onClicked: filter.set(typeParam, 0)
             }
+
             RadioButton {
                 id: blueRadioButton
+
                 text: qsTr('Blue')
                 ButtonGroup.group: typeGroup
                 onClicked: filter.set(typeParam, 1)
             }
         }
 
-        Item { Layout.fillHeight: true }
+        Item {
+            Layout.fillHeight: true
+        }
     }
 }

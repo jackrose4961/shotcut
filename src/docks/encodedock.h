@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2021 Meltytech, LLC
+ * Copyright (c) 2012-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,22 +18,26 @@
 #ifndef ENCODEDOCK_H
 #define ENCODEDOCK_H
 
+#include "settings.h"
+
 #include <QDockWidget>
 #include <QDomElement>
 #include <QStandardItemModel>
 #include <QSortFilterProxyModel>
+#include <QStringList>
 #include <MltProperties.h>
 
 class QTreeWidgetItem;
-class QStringList;
+class QTemporaryFile;
 namespace Ui {
-    class EncodeDock;
+class EncodeDock;
 }
 class AbstractJob;
 class MeltJob;
 namespace Mlt {
-    class Service;
-    class Producer;
+class Service;
+class Producer;
+class Filter;
 }
 
 class PresetsProxyModel : public QSortFilterProxyModel
@@ -50,16 +54,18 @@ public:
     explicit EncodeDock(QWidget *parent = 0);
     ~EncodeDock();
 
-    void loadPresetFromProperties(Mlt::Properties&);
+    void loadPresetFromProperties(Mlt::Properties &);
     bool isExportInProgress() const;
 
 signals:
     void captureStateChanged(bool);
+    void createOrEditFilterOnOutput(Mlt::Filter *, const QStringList & = {});
 
 public slots:
     void onAudioChannelsChanged();
     void onProducerOpened();
     void onProfileChanged();
+    void onReframeChanged();
     void on_hwencodeButton_clicked();
     bool detectHardwareEncoders();
 
@@ -75,7 +81,7 @@ private slots:
 
     void on_removePresetButton_clicked();
 
-    void onFinished(AbstractJob*, bool isSuccess);
+    void onFinished(AbstractJob *, bool isSuccess);
 
     void on_stopCaptureButton_clicked();
 
@@ -117,7 +123,7 @@ private slots:
 
     void on_fpsSpinner_editingFinished();
 
-    void on_fpsComboBox_activated(const QString &arg1);
+    void on_fpsComboBox_activated(int arg1);
 
     void on_videoQualitySpinner_valueChanged(int vq);
 
@@ -125,7 +131,13 @@ private slots:
 
     void on_parallelCheckbox_clicked(bool checked);
 
-    void on_resolutionComboBox_activated(const QString &arg1);
+    void on_resolutionComboBox_activated(int arg1);
+
+    void on_reframeButton_clicked();
+
+    void on_aspectNumSpinner_valueChanged(int value);
+
+    void on_aspectDenSpinner_valueChanged(int value);
 
 private:
     enum {
@@ -137,6 +149,7 @@ private:
     enum {
         AudioChannels1 = 0,
         AudioChannels2,
+        AudioChannels4,
         AudioChannels6,
     };
     Ui::EncodeDock *ui;
@@ -148,20 +161,36 @@ private:
     QStringList m_outputFilenames;
     bool m_isDefaultSettings;
     double m_fps;
+    QStringList m_intraOnlyCodecs;
+    QStringList m_losslessVideoCodecs;
+    QStringList m_losslessAudioCodecs;
 
     void loadPresets();
-    Mlt::Properties* collectProperties(int realtime, bool includeProfile = false);
-    void collectProperties(QDomElement& node, int realtime);
-    MeltJob* createMeltJob(Mlt::Producer* service, const QString& target, int realtime, int pass = 0);
-    void runMelt(const QString& target, int realtime = -1);
+    Mlt::Properties *collectProperties(int realtime, bool includeProfile = false);
+    void collectProperties(QDomElement &node, int realtime);
+    void setSubtitleProperties(QDomElement &node, Mlt::Producer *service);
+    QPoint addConsumerElement(Mlt::Producer *service, QDomDocument &dom, const QString &target,
+                              int realtime, int pass);
+    MeltJob *convertReframe(Mlt::Producer *service, QTemporaryFile *tmp, const QString &target,
+                            int realtime, int pass, const QThread::Priority priority);
+    MeltJob *createMeltJob(Mlt::Producer *service, const QString &target, int realtime, int pass = 0,
+                           const QThread::Priority priority = Settings.jobPriority());
+    void runMelt(const QString &target, int realtime = -1);
     void enqueueAnalysis();
-    void enqueueMelt(const QStringList& targets, int realtime);
-    void encode(const QString& target);
+    void enqueueMelt(const QStringList &targets, int realtime);
+    void encode(const QString &target);
     void resetOptions();
-    Mlt::Producer* fromProducer() const;
-    static void filterX265Params(QStringList& other);
-    void onVideoCodecComboChanged(int index, bool ignorePreset = false);
+    Mlt::Producer *fromProducer(bool usePlaylistBin = false) const;
+    static void filterCodecParams(const QString &vcodec, QStringList &other);
+    void onVideoCodecComboChanged(int index, bool ignorePreset = false, bool resetBframes = true);
     bool checkForMissingFiles();
+    QString &defaultFormatExtension();
+    void initSpecialCodecLists();
+    void setReframeEnabled(bool enabled);
+    void showResampleWarning(const QString &message);
+    void hideResampleWarning(bool hide = true);
+    void checkFrameRate();
+    void setResolutionAspectFromProfile();
 };
 
 #endif // ENCODEDOCK_H

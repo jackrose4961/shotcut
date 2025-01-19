@@ -28,21 +28,24 @@
 class UndoHelper
 {
 public:
-    enum OptimizationHints
-    {
+    enum OptimizationHints {
         NoHints,
         SkipXML,
         RestoreTracks
     };
-    UndoHelper(MultitrackModel & model);
+    UndoHelper(MultitrackModel &model);
 
     void recordBeforeState();
     void recordAfterState();
     void undoChanges();
     void setHints(OptimizationHints hints);
+    QSet<int> affectedTracks() const
+    {
+        return m_affectedTracks;
+    }
 
 private:
-    void debugPrintState();
+    void debugPrintState(const QString &title);
     void restoreAffectedTracks();
     void fixTransitions(Mlt::Playlist playlist, int clipIndex, Mlt::Producer clip);
 
@@ -65,6 +68,7 @@ private:
         int frame_out;
         int in_delta;
         int out_delta;
+        int group;
 
         int changes;
         Info()
@@ -78,13 +82,14 @@ private:
             , in_delta(0)
             , out_delta(0)
             , changes(NoChange)
+            , group(-1)
         {}
     };
-    QMap<QUuid,Info> m_state;
+    QMap<QUuid, Info> m_state;
     QList<QUuid> m_clipsAdded;
     QList<QUuid> m_insertedOrder;
     QSet<int> m_affectedTracks;
-    MultitrackModel & m_model;
+    MultitrackModel &m_model;
     OptimizationHints m_hints;
 };
 

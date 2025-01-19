@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,37 +15,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-function scrollIfNeeded(center) {
-    var x = timeline.position * multitrack.scaleFactor;
+function scrollIfNeeded(center, continouous) {
+    let x = timeline.position * multitrack.scaleFactor;
     if (!tracksFlickable) return;
-    if (settings.timelineCenterPlayhead || center) {
+    if (center) {
         if (x > tracksFlickable.contentX + tracksFlickable.width * 0.5)
             tracksFlickable.contentX = x - tracksFlickable.width * 0.5;
         else if (x < tracksFlickable.width * 0.5)
             tracksFlickable.contentX = 0;
         else if (x < tracksFlickable.contentX + tracksFlickable.width * 0.5)
             tracksFlickable.contentX = x - tracksFlickable.width * 0.5;
-    } else {
-        if (x > tracksFlickable.contentX + tracksFlickable.width - 50)
-            tracksFlickable.contentX = x - tracksFlickable.width + 50;
-        else if (x < 50)
-            tracksFlickable.contentX = 0;
-        else if (x < tracksFlickable.contentX + 50)
-            tracksFlickable.contentX = x - 50;
+    } else if (tracksContainer.width > tracksFlickable.width) {
+        if (continouous) {
+            if (x > tracksFlickable.contentX + tracksFlickable.width - 50)
+                tracksFlickable.contentX = x - tracksFlickable.width + 50;
+            else if (x < 50)
+                tracksFlickable.contentX = 0;
+            else if (x < tracksFlickable.contentX + 50)
+                tracksFlickable.contentX = x - 50;
+        } else {
+            // paginated
+            let leftLimit = tracksFlickable.contentX + 50
+            let pageCount = Math.floor((x - leftLimit)/(tracksFlickable.width - 100))
+            tracksFlickable.contentX = Math.max(tracksFlickable.contentX + pageCount*(tracksFlickable.width - 100), 0);
+        }
     }
 }
 
 function dragging(pos, duration) {
     if (tracksRepeater.count > 0) {
-        var headerHeight = ruler.height + toolbar.height
+        let headerHeight = ruler.height
+        let i = 0;
         dropTarget.x = pos.x
         dropTarget.width = duration * multitrack.scaleFactor
 
-        for (var i = 0; i < tracksRepeater.count; i++) {
-            var trackY = tracksRepeater.itemAt(i).y + headerHeight - tracksFlickable.contentY
-            var trackH = tracksRepeater.itemAt(i).height
+        for (i = 0; i < tracksRepeater.count; i++) {
+            let trackY = tracksRepeater.itemAt(i).y + headerHeight - tracksFlickable.contentY
+            let trackH = tracksRepeater.itemAt(i).height
             if (pos.y >= trackY && pos.y < trackY + trackH) {
-                currentTrack = i
+                timeline.currentTrack = i
                 if (pos.x > headerWidth) {
                     dropTarget.height = trackH
                     dropTarget.y = trackY
@@ -79,7 +87,7 @@ function dragging(pos, duration) {
             scrollTimer.stop()
         }
 
-        if (toolbar.scrub) {
+        if (settings.timelineDragScrub) {
             timeline.position = Math.round(
                 (pos.x + tracksFlickable.contentX - headerWidth) / multitrack.scaleFactor)
         }
@@ -88,7 +96,7 @@ function dragging(pos, duration) {
                 tracksRepeater.itemAt(i).snapDrop(pos)
         }
     } else {
-        currentTrack = 0
+        timeline.currentTrack = 0
     }
 }
 
@@ -98,11 +106,8 @@ function dropped() {
 }
 
 function acceptDrop(xml) {
-    var position = Math.round((dropTarget.x + tracksFlickable.contentX - headerWidth) / multitrack.scaleFactor)
-    if (settings.timelineRipple)
-        timeline.insert(currentTrack, position, xml, false)
-    else
-        timeline.overwrite(currentTrack, position, xml, false)
+    let position = Math.round((dropTarget.x + tracksFlickable.contentX - headerWidth) / multitrack.scaleFactor)
+    timeline.handleDrop(timeline.currentTrack, position, xml)
 }
 
 function trackHeight(isAudio) {
@@ -114,8 +119,8 @@ function clamp(x, minimum, maximum) {
 }
 
 function scrollMax() {
-    var maxWidth = Math.max(tracksFlickable.contentWidth - tracksFlickable.width + 14, 0)
-    var maxHeight = Math.max(tracksFlickable.contentHeight - tracksFlickable.height + 14, 0)
+    let maxWidth = Math.max(tracksFlickable.contentWidth - tracksFlickable.width + 14, 0)
+    let maxHeight = Math.max(tracksFlickable.contentHeight - tracksFlickable.height + 14, 0)
     return Qt.point(maxWidth, maxHeight)
 }
 
@@ -127,14 +132,18 @@ function onMouseWheel(wheel) {
             adjustZoom(wheel.angleDelta.y / 2000, wheel.x)
         }
         if (wheel.modifiers & Qt.ShiftModifier) {
-            n = (application.OS === 'OS X')? wheel.angleDelta.x : wheel.angleDelta.y
+            n = (application.OS === 'macOS')? wheel.angleDelta.x : wheel.angleDelta.y
             multitrack.trackHeight = Math.max(10, multitrack.trackHeight + n / 25)
         }
     } else {
         // Scroll
         if ((wheel.pixelDelta.x || wheel.pixelDelta.y) && wheel.modifiers === Qt.NoModifier) {
-            var x = wheel.pixelDelta.x
-            var y = wheel.pixelDelta.y
+            let x = wheel.pixelDelta.x
+            let y = wheel.pixelDelta.y
+            if (application.OS !== 'Windows' && !x && y) {
+                x = y;
+                y = 0;
+            }
             // Track pads provide both horizontal and vertical.
             if (!y || Math.abs(x) > 2)
                 tracksFlickable.contentX = clamp(tracksFlickable.contentX - x, 0, scrollMax().x)
@@ -142,7 +151,7 @@ function onMouseWheel(wheel) {
         } else {
             // Vertical only mouse wheel requires modifier for vertical scroll.
             if (wheel.modifiers === Qt.AltModifier) {
-                n = Math.round((application.OS === 'OS X'? wheel.angleDelta.y : wheel.angleDelta.x) / 2)
+                n = Math.round((application.OS === 'macOS'? wheel.angleDelta.y : wheel.angleDelta.x) / 2)
                 tracksFlickable.contentY = clamp(tracksFlickable.contentY - n, 0, scrollMax().y)
             } else {
                 n = Math.round(wheel.angleDelta.y / 2)
@@ -152,41 +161,78 @@ function onMouseWheel(wheel) {
     }
 }
 
-function toggleSelection(trackIndex, clipIndex) {
-    var result = []
-    var skip = false
-    timeline.selection.forEach(function(el) {
-        if (el.x !== clipIndex || el.y !== trackIndex)
-            result.push(el)
-        else
-            skip = true
+function toggleSelection(trackIndex, clipIndex, group) {
+    let result = timeline.selection
+    let append = true
+    // Check if this clip is already in selection to know if we append or remove
+    result.forEach(function(el) {
+        if (el.x === clipIndex && el.y === trackIndex)
+            append = false
     })
-    if (!skip)
+    if (append && !group) {
+        // Add this one clip to the selection
         result.push(Qt.point(clipIndex, trackIndex))
+    } else if (append && group) {
+        // Add this clip and its group to the selection
+        result = result.concat(timeline.getGroupForClip(trackIndex, clipIndex))
+    } else if (!append && !group) {
+        // Remove this one clip from the selection
+        result = result.filter( function( el ) {
+            return el.x !== clipIndex || el.y !== trackIndex;
+        } );
+    } else if (!append && group) {
+        // Remove this clip and its group from the selection
+        let groupClips = timeline.getGroupForClip(trackIndex, clipIndex)
+        result = result.filter( function( el ) {
+            return groupClips.indexOf( el ) < 0;
+        } );
+    }
     return result
 }
 
 function selectRange(trackIndex, clipIndex) {
-    var result = [timeline.selection.length? timeline.selection[0] : Qt.point(clipIndex, trackIndex)]
+    let result = [timeline.selection.length? timeline.selection[0] : Qt.point(clipIndex, trackIndex)]
     // this only works on a single track for now
     if (timeline.selection.length && trackIndex === result[0].y) {
-        var x
         if (clipIndex > result[0].x) {
-            for (x = result[0].x + 1; x <= clipIndex; x++)
-                result.push(Qt.point(x, trackIndex))
+            for (let x = result[0].x + 1; x <= clipIndex; x++)
+                if (!tracksRepeater.itemAt(trackIndex).clipAt(x).isBlank)
+                    result.push(Qt.point(x, trackIndex))
         } else {
-            for (x = clipIndex; x < result[0].x; x++)
-                result.push(Qt.point(x, trackIndex))
+            for (let x = clipIndex; x < result[0].x; x++)
+                if (!tracksRepeater.itemAt(trackIndex).clipAt(x).isBlank)
+                    result.push(Qt.point(x, trackIndex))
         }
     }
     return result
 }
 
 function selectionContains(trackIndex, clipIndex) {
-    var selection = timeline.selection
-    for (var i = 0; i < selection.length; i++) {
+    let selection = timeline.selection
+    for (let i = 0; i < selection.length; i++) {
         if (selection[i].x === clipIndex && selection[i].y === trackIndex)
             return true
     }
     return false
+}
+
+function selectClips() {
+    let result = [];
+    let rectA = Qt.rect(selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height);
+    for (let trackIndex = 0; trackIndex < tracksRepeater.count; trackIndex++) {
+        let track = tracksRepeater.itemAt(trackIndex);
+        let rectB = Qt.rect(track.x, track.y, track.width, track.height);
+        if (application.intersects(rectA, rectB)) {
+            for (let clipIndex = 0; clipIndex < track.clipCount; clipIndex++) {
+                let clip = track.clipAt(clipIndex);
+                if (!clip.isBlank) {
+                    rectB = selectionBox.parent.mapFromItem(track, clip.x, clip.y, clip.width, clip.height)
+                    if (application.intersects(rectA, rectB))
+                        result.push(Qt.point(clipIndex, trackIndex));
+                }
+            }
+        }
+    }
+    if (result.length > 0)
+        timeline.selection = result;
 }

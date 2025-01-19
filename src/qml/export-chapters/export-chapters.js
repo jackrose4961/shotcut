@@ -2177,7 +2177,7 @@ function defaultClearTimeout () {
 } ())
 function runTimeout(fun) {
     if (cachedSetTimeout === setTimeout) {
-        //normal enviroments in sane situations
+        //normal environments in sane situations
         return setTimeout(fun, 0);
     }
     // if setTimeout wasn't available but was latter defined
@@ -2186,14 +2186,14 @@ function runTimeout(fun) {
         return setTimeout(fun, 0);
     }
     try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
+        // when when somebody has screwed with setTimeout but no I.E. madness
         return cachedSetTimeout(fun, 0);
     } catch(e){
         try {
             // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
             return cachedSetTimeout.call(null, fun, 0);
         } catch(e){
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopefully our context correct otherwise it will throw a global error
             return cachedSetTimeout.call(this, fun, 0);
         }
     }
@@ -2202,7 +2202,7 @@ function runTimeout(fun) {
 }
 function runClearTimeout(marker) {
     if (cachedClearTimeout === clearTimeout) {
-        //normal enviroments in sane situations
+        //normal environments in sane situations
         return clearTimeout(marker);
     }
     // if clearTimeout wasn't available but was latter defined
@@ -2211,14 +2211,14 @@ function runClearTimeout(marker) {
         return clearTimeout(marker);
     }
     try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
+        // when when somebody has screwed with setTimeout but no I.E. madness
         return cachedClearTimeout(marker);
     } catch (e){
         try {
             // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
             return cachedClearTimeout.call(null, marker);
         } catch (e){
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopefully our context correct otherwise it will throw a global error.
             // Some versions of I.E. have different rules for clearTimeout vs setTimeout
             return cachedClearTimeout.call(this, marker);
         }
@@ -2284,7 +2284,7 @@ process.nextTick = function (fun) {
     }
 };
 
-// v8 likes predictible objects
+// v8 likes predictable objects
 function Item(fun, array) {
     this.fun = fun;
     this.array = array;
@@ -6617,7 +6617,7 @@ else
     var parent = parser.tags[parser.tags.length - 1] || parser
     var tag = parser.tag = { name: parser.tagName, attributes: {} }
 
-    // will be overridden if tag contails an xmlns="foo" or xmlns:foo="bar"
+    // will be overridden if tag contains an xmlns="foo" or xmlns:foo="bar"
     if (parser.opt.xmlns) {
       tag.ns = parent.ns
     }
@@ -7528,13 +7528,19 @@ if (typeof module !== 'undefined' && module.exports) {
 function MltXmlParser(xmlString, options) {
     var self = Object.create(this);
     self.xmldoc = new xmldoc.XmlDocument(xmlString);
+    self.includeRanges = self.get(options, 'includeRanges', false);
+    self.selectedColors = self.get(options, 'colors', []);
     return self;
 }
+
+MltXmlParser.prototype.get = function(dict, name, defaultValue) {
+    return (typeof dict === 'object' && name in dict)? dict[name] : defaultValue;
+};
 
 MltXmlParser.prototype.timecode = function(value) {
     if (typeof value === 'string') {
         // Determine if this is a MLT "clock" time string.
-        if (value.length === 12 && (value[8] === '.' || value[8] === ',')) {
+        if (value[8] === '.' || value[8] === ',' || value[8] === ':' || value[8] === ';') {
             if (value.substring(0,3) === '00:') {
                 return value.substring(3, 8);
             } else {
@@ -7548,34 +7554,38 @@ MltXmlParser.prototype.timecode = function(value) {
 
 MltXmlParser.prototype.createChapters = function() {
     var chaptersStr = "00:00 Intro\n";
-    var tractor = this.xmldoc.childNamed('tractor');
     var self = this;
     var markers = [];
 
-    tractor.childrenNamed('properties').forEach(function (p) {
-        if (p.attr.name === 'shotcut:markers') {
-            p.childrenNamed('properties').forEach(function (m) {
-                var marker = {};
-                m.childrenNamed('property').forEach(function (prop) {
-                    if (prop.attr.name === 'start') {
-                        marker.start = prop.val;
-                        marker.timecode = self.timecode(prop.val);
-                        marker.seconds = 3600 * parseInt(prop.val.substring(0, 2)) + 60 * parseInt(prop.val.substring(3, 5)) + parseInt(prop.val.substring(6, 8));
-                        if (marker.timecode === '00:00') {
-                            chaptersStr = '';
+    this.xmldoc.childrenNamed('tractor').forEach(function (tractor) {
+        tractor.childrenNamed('properties').forEach(function (p) {
+            if (p.attr.name === 'shotcut:markers') {
+                p.childrenNamed('properties').forEach(function (m) {
+                    var marker = {};
+                    m.childrenNamed('property').forEach(function (prop) {
+                        if (prop.attr.name === 'start') {
+                            marker.start = prop.val;
+                            marker.timecode = self.timecode(prop.val);
+                            marker.seconds = 3600 * parseInt(prop.val.substring(0, 2)) + 60 * parseInt(prop.val.substring(3, 5)) + parseInt(prop.val.substring(6, 8));
+                            if (marker.timecode === '00:00') {
+                                chaptersStr = '';
+                           }
+                        } else if (prop.attr.name === 'end') {
+                            marker.end = prop.val;
+                        } else if (prop.attr.name === 'text') {
+                            marker.text = prop.val;
+                        } else if (prop.attr.name === 'color') {
+                            marker.color = prop.val;
                         }
-                    } else if (prop.attr.name === 'end') {
-                        marker.end = prop.val;
-                    } else if (prop.attr.name === 'text') {
-                        marker.text = prop.val;
+                    });
+                    if ((self.includeRanges || marker.end === marker.start)
+                            && (self.selectedColors.length === 0 || self.selectedColors.includes(marker.color))) {
+                        markers.push(marker);
                     }
                 });
-                if (marker.end === marker.start) {
-                    markers.push(marker);
-                }
-            });
-            return;
-        }
+                return;
+            }
+        });
     });
     markers.sort(function compare(a, b) {
         return (a.seconds === b.seconds)? 0 : (a.seconds < b.seconds)? -1 : 1;

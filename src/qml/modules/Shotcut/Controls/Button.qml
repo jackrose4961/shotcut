@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Meltytech, LLC
+ * Copyright (c) 2020-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,19 +14,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.2
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Controls
 
 Button {
     verticalPadding: text ? 4 : 2
     horizontalPadding: text ? 10 : 2
     hoverEnabled: true
-
-    SystemPalette { id: activePalette }
     palette.buttonText: activePalette.buttonText
     palette.button: checked ? activePalette.highlight : activePalette.button
-
     Keys.onReturnPressed: clicked()
     Keys.onEnterPressed: clicked()
+
+    SystemPalette {
+        id: activePalette
+    }
 }

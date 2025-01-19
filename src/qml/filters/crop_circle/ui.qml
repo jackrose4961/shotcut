@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Meltytech, LLC
+ * Copyright (c) 2020-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,80 +14,44 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
+import org.shotcut.qml as Shotcut
 
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
-
-Item {
-    width: 400
-    height: 100
-    property bool blockUpdate: true
-    property double startValue: 0.5
-    property double middleValue: 0.5
-    property double endValue: 0.5
-
-    Component.onCompleted: {
-        filter.set('circle', 1)
-        if (filter.isNew) {
-            // Set default parameter values
-            filter.set('color', '#ff000000')
-            filter.set('radius', 0.5)
-        } else {
-            middleValue = filter.getDouble('radius', filter.animateIn)
-            if (filter.animateIn > 0)
-                startValue = filter.getDouble('radius', 0)
-            if (filter.animateOut > 0)
-                endValue = filter.getDouble('radius', filter.duration - 1)
-        }
-        setControls()
-        colorSwatch.value = filter.get('color')
-    }
-
-    function getPosition() {
-        return Math.max(producer.position - (filter.in - producer.in), 0)
-    }
+Shotcut.KeyframableFilter {
 
     function setControls() {
-        var position = getPosition()
-        blockUpdate = true
-        slider.value = filter.getDouble('radius', position) * slider.maximumValue
-        keyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount('radius') > 0
-        blockUpdate = false
-        slider.enabled = position <= 0 || (position >= (filter.animateIn - 1) && position <= (filter.duration - filter.animateOut)) || position >= (filter.duration - 1)
+        var position = getPosition();
+        blockUpdate = true;
+        slider.value = filter.getDouble('radius', position) * slider.maximumValue;
+        colorSwatch.value = filter.getColor('color', position);
+        radiusKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount('radius') > 0;
+        colorKeyframesButton.checked = filter.keyframeCount('color') > 0 && filter.animateIn <= 0 && filter.animateOut <= 0;
+        blockUpdate = false;
+        slider.enabled = position <= 0 || (position >= (filter.animateIn - 1) && position <= (filter.duration - filter.animateOut)) || position >= (filter.duration - 1);
     }
 
-    function updateFilter(position) {
-        if (blockUpdate) return
-        var value = slider.value / 100.0
+    function updateParameters() {
+        updateFilter('radius', slider.value / slider.maximumValue, radiusKeyframesButton, null);
+        updateFilter('color', colorSwatch.value, colorKeyframesButton, null);
+    }
 
-        if (position !== null) {
-            if (position <= 0 && filter.animateIn > 0)
-                startValue = value
-            else if (position >= filter.duration - 1 && filter.animateOut > 0)
-                endValue = value
-            else
-                middleValue = value
+    keyframableParameters: ['radius', 'color']
+    startValues: [0.5, Qt.rgba(0, 0, 0, 1)]
+    middleValues: [0.5, Qt.rgba(0, 0, 0, 1)]
+    endValues: [0.5, Qt.rgba(0, 0, 0, 1)]
+    width: 400
+    height: 100
+    Component.onCompleted: {
+        filter.set('circle', 1);
+        if (filter.isNew) {
+            // Set default parameter values
+            filter.set('color', Qt.rgba(0, 0, 0, 1));
+            filter.set('radius', 0.5);
         }
-
-        if (filter.animateIn > 0 || filter.animateOut > 0) {
-            filter.resetProperty('radius')
-            keyframesButton.checked = false
-            if (filter.animateIn > 0) {
-                filter.set('radius', startValue, 0)
-                filter.set('radius', middleValue, filter.animateIn - 1)
-            }
-            if (filter.animateOut > 0) {
-                filter.set('radius', middleValue, filter.duration - filter.animateOut)
-                filter.set('radius', endValue, filter.duration - 1)
-            }
-        } else if (!keyframesButton.checked) {
-            filter.resetProperty('radius')
-            filter.set('radius', middleValue)
-        } else if (position !== null) {
-            filter.set('radius', value, position)
-        }
+        setControls();
     }
 
     GridLayout {
@@ -99,64 +63,66 @@ Item {
             text: qsTr('Radius')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: slider
+
             minimumValue: 0
             maximumValue: 100
             decimals: 1
             suffix: ' %'
-            onValueChanged: updateFilter(getPosition())
+            onValueChanged: updateFilter('radius', value / maximumValue, radiusKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: slider.value = 50
         }
+
         Shotcut.KeyframesButton {
-            id: keyframesButton
+            id: radiusKeyframesButton
+
             onToggled: {
-                var value = slider.value / 100.0
-                if (checked) {
-                    blockUpdate = true
-                    filter.clearSimpleAnimation('radius')
-                    blockUpdate = false
-                    filter.set('radius', value, getPosition())
-                } else {
-                    filter.resetProperty('radius')
-                    filter.set('radius', value)
-                }
+                toggleKeyframes(checked, 'radius', slider.value / slider.maximumValue);
+                setControls();
             }
         }
-
 
         Label {
             text: qsTr('Color')
             Layout.alignment: Qt.AlignRight
         }
+
         RowLayout {
             Shotcut.ColorPicker {
                 id: colorSwatch
-                alpha: true
+
                 property bool isReady: false
+
+                alpha: true
                 Component.onCompleted: isReady = true
                 onValueChanged: {
                     if (isReady) {
-                        filter.set('color', value)
-                        filter.set("disable", 0);
+                        updateFilter('color', Qt.color(value), colorKeyframesButton, getPosition());
                     }
                 }
-                onPickStarted: {
-                    filter.set('disable', 1);
-                }
+                onPickStarted: filter.set('disable', 1)
                 onPickCancelled: filter.set('disable', 0)
             }
+
             Shotcut.Button {
                 text: qsTr('Transparent')
-                onClicked: colorSwatch.value = '#00000000'
+                onClicked: colorSwatch.value = Qt.rgba(0, 0, 0, 0)
             }
         }
+
         Shotcut.UndoButton {
-            onClicked: colorSwatch.value = '#FF000000'
+            onClicked: colorSwatch.value = Qt.rgba(0, 0, 0, 1)
         }
-        Item { width: 1 }
+
+        Shotcut.KeyframesButton {
+            id: colorKeyframesButton
+            onToggled: toggleKeyframes(checked, 'color', Qt.color(colorSwatch.value))
+        }
 
         Item {
             Layout.fillHeight: true
@@ -164,25 +130,38 @@ Item {
     }
 
     Connections {
+        function onChanged() {
+            setControls();
+        }
+
+        function onInChanged() {
+            updateParameters();
+        }
+
+        function onOutChanged() {
+            updateParameters();
+        }
+
+        function onAnimateInChanged() {
+            updateParameters();
+        }
+
+        function onAnimateOutChanged() {
+            updateParameters();
+        }
+
+        function onPropertyChanged(name) {
+            setControls();
+        }
+
         target: filter
-        onInChanged: updateFilter(null)
-        onOutChanged: updateFilter(null)
-        onAnimateInChanged: updateFilter(null)
-        onAnimateOutChanged: updateFilter(null)
-        onPropertyChanged: setControls()
     }
 
     Connections {
-        target: producer
-        onPositionChanged: {
-            if (filter.animateIn > 0 || filter.animateOut > 0) {
-                setControls()
-            } else {
-                blockUpdate = true
-                slider.value = filter.getDouble('radius', getPosition()) * slider.maximumValue
-                blockUpdate = false
-                slider.enabled = true
-            }
+        function onPositionChanged() {
+            setControls();
         }
+
+        target: producer
     }
 }

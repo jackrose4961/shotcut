@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020 Meltytech, LLC
+ * Copyright (c) 2012-2025 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #include "video4linuxwidget.h"
 #include "ui_video4linuxwidget.h"
 #include "pulseaudiowidget.h"
-#include "jackproducerwidget.h"
 #include "alsawidget.h"
 #include "mltcontroller.h"
 #include "util.h"
@@ -36,6 +35,7 @@ Video4LinuxWidget::Video4LinuxWidget(QWidget *parent) :
     ui->applyButton->hide();
     ui->preset->saveDefaultPreset(getPreset());
     ui->preset->loadPresets();
+    ui->v4lLineEdit->setText(Settings.videoInput());
 }
 
 Video4LinuxWidget::~Video4LinuxWidget()
@@ -45,30 +45,32 @@ Video4LinuxWidget::~Video4LinuxWidget()
 
 QString Video4LinuxWidget::URL() const
 {
-    QString s = QString("video4linux2:%1?width=%2&height=%3")
-            .arg(ui->v4lLineEdit->text())
-            .arg(ui->v4lWidthSpinBox->value())
-            .arg(ui->v4lHeightSpinBox->value());
+    QString s = QStringLiteral("video4linux2:%1?width=%2&height=%3")
+                .arg(ui->v4lLineEdit->text())
+                .arg(ui->v4lWidthSpinBox->value())
+                .arg(ui->v4lHeightSpinBox->value());
     if (ui->v4lFramerateSpinBox->value() > 0)
-        s += QString("&framerate=%1").arg(ui->v4lFramerateSpinBox->value());
+        s += QStringLiteral("&framerate=%1").arg(ui->v4lFramerateSpinBox->value());
     if (ui->v4lStandardCombo->currentIndex() > 0)
-        s += QString("&standard=") + ui->v4lStandardCombo->currentText();
+        s += QStringLiteral("&standard=") + ui->v4lStandardCombo->currentText();
     if (ui->v4lChannelSpinBox->value() > 0)
-        s += QString("&channel=%1").arg(ui->v4lChannelSpinBox->value());
+        s += QStringLiteral("&channel=%1").arg(ui->v4lChannelSpinBox->value());
     return s;
 }
 
-Mlt::Producer* Video4LinuxWidget::newProducer(Mlt::Profile& profile)
+Mlt::Producer *Video4LinuxWidget::newProducer(Mlt::Profile &profile)
 {
     if (!profile.is_explicit()) {
         Mlt::Profile ntscProfile("dv_ntsc");
         Mlt::Profile palProfile("dv_pal");
-        if (ui->v4lWidthSpinBox->value() == ntscProfile.width() && ui->v4lHeightSpinBox->value() == ntscProfile.height()) {
+        if (ui->v4lWidthSpinBox->value() == ntscProfile.width()
+                && ui->v4lHeightSpinBox->value() == ntscProfile.height()) {
             profile.set_sample_aspect(ntscProfile.sample_aspect_num(), ntscProfile.sample_aspect_den());
             profile.set_progressive(ntscProfile.progressive());
             profile.set_colorspace(ntscProfile.colorspace());
             profile.set_frame_rate(ntscProfile.frame_rate_num(), ntscProfile.frame_rate_den());
-        } else if (ui->v4lWidthSpinBox->value() == palProfile.width() && ui->v4lHeightSpinBox->value() == palProfile.height()) {
+        } else if (ui->v4lWidthSpinBox->value() == palProfile.width()
+                   && ui->v4lHeightSpinBox->value() == palProfile.height()) {
             profile.set_sample_aspect(palProfile.sample_aspect_num(), palProfile.sample_aspect_den());
             profile.set_progressive(palProfile.progressive());
             profile.set_colorspace(palProfile.colorspace());
@@ -84,17 +86,16 @@ Mlt::Producer* Video4LinuxWidget::newProducer(Mlt::Profile& profile)
         MLT.updatePreviewProfile();
         MLT.setPreviewScale(Settings.playerPreviewScale());
     }
-    Mlt::Producer* p = new Mlt::Producer(profile, URL().toLatin1().constData());
+    Mlt::Producer *p = new Mlt::Producer(profile, URL().toLatin1().constData());
     if (!p->is_valid()) {
         delete p;
         p = new Mlt::Producer(profile, "color:");
-        p->set("resource1", QString("video4linux2:%1")
+        p->set("resource1", QStringLiteral("video4linux2:%1")
                .arg(ui->v4lLineEdit->text()).toLatin1().constData());
         p->set("error", 1);
-    }
-    else if (m_audioWidget) {
-        Mlt::Producer* audio = dynamic_cast<AbstractProducerWidget*>(m_audioWidget)->newProducer(profile);
-        Mlt::Tractor* tractor = new Mlt::Tractor;
+    } else if (m_audioWidget) {
+        Mlt::Producer *audio = dynamic_cast<AbstractProducerWidget *>(m_audioWidget)->newProducer(profile);
+        Mlt::Tractor *tractor = new Mlt::Tractor;
         tractor->set("_profile", profile.get_profile(), 0);
         tractor->set_track(*p, 0);
         delete p;
@@ -102,7 +103,7 @@ Mlt::Producer* Video4LinuxWidget::newProducer(Mlt::Profile& profile)
         delete audio;
         p = new Mlt::Producer(tractor->get_producer());
         delete tractor;
-        p->set("resource1", QString("video4linux2:%1")
+        p->set("resource1", QStringLiteral("video4linux2:%1")
                .arg(ui->v4lLineEdit->text()).toLatin1().constData());
     }
     p->set("device", ui->v4lLineEdit->text().toLatin1().constData());
@@ -116,6 +117,7 @@ Mlt::Producer* Video4LinuxWidget::newProducer(Mlt::Profile& profile)
     p->set("force_seekable", 0);
     p->set(kBackgroundCaptureProperty, 1);
     p->set(kShotcutCaptionProperty, "Video4Linux");
+    Settings.setVideoInput(ui->v4lLineEdit->text());
     return p;
 }
 
@@ -132,7 +134,7 @@ Mlt::Properties Video4LinuxWidget::getPreset() const
     return p;
 }
 
-void Video4LinuxWidget::loadPreset(Mlt::Properties& p)
+void Video4LinuxWidget::loadPreset(Mlt::Properties &p)
 {
     ui->v4lLineEdit->setText(p.get("device"));
     ui->v4lWidthSpinBox->setValue(p.get_int("width"));
@@ -158,16 +160,14 @@ void Video4LinuxWidget::on_v4lAudioComboBox_activated(int index)
     if (index == 1)
         m_audioWidget = new PulseAudioWidget(this);
     else if (index == 2)
-        m_audioWidget = new JackProducerWidget(this);
-    else if (index == 3)
         m_audioWidget = new AlsaWidget(this);
     if (m_audioWidget)
         ui->audioLayout->addWidget(m_audioWidget);
 }
 
-void Video4LinuxWidget::on_preset_selected(void* p)
+void Video4LinuxWidget::on_preset_selected(void *p)
 {
-    Mlt::Properties* properties = (Mlt::Properties*) p;
+    Mlt::Properties *properties = (Mlt::Properties *) p;
     loadPreset(*properties);
     delete properties;
 }
@@ -177,7 +177,7 @@ void Video4LinuxWidget::on_preset_saveClicked()
     ui->preset->savePreset(getPreset());
 }
 
-void Video4LinuxWidget::setProducer(Mlt::Producer* producer)
+void Video4LinuxWidget::setProducer(Mlt::Producer *producer)
 {
     ui->applyButton->show();
     if (producer)
@@ -191,7 +191,7 @@ void Video4LinuxWidget::on_applyButton_clicked()
     emit producerChanged(0);
     QCoreApplication::processEvents();
 
-    Mlt::Producer* p = newProducer(MLT.profile());
+    Mlt::Producer *p = newProducer(MLT.profile());
     AbstractProducerWidget::setProducer(p);
     MLT.setProducer(p);
     MLT.play();

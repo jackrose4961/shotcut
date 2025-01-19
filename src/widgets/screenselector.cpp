@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 Meltytech, LLC
+ * Copyright (c) 2014-2025 Meltytech, LLC
  * Inspiration: KDENLIVE colorpickerwidget.cpp by Till Theato (root@ttill.de)
  * Inspiration: QColorDialog.cpp
  *
@@ -24,13 +24,14 @@
 #include <QApplication>
 #include <QMouseEvent>
 
-ScreenSelector::ScreenSelector(QWidget* parent)
+ScreenSelector::ScreenSelector(QWidget *parent)
     : QFrame(parent)
     , m_selectionInProgress(false)
     , m_selectionRect(-1, -1, -1, -1)
     , m_selectionPoint(-1, -1)
     , m_fixedSize(-1, -1)
     , m_boundingRect(-1, -1, -1, -1)
+    , m_useDBus(false)
 {
     setFrameStyle(QFrame::Box | QFrame::Plain);
     setWindowOpacity(0.5);
@@ -39,17 +40,17 @@ ScreenSelector::ScreenSelector(QWidget* parent)
     setCursor(Qt::CrossCursor);
 }
 
-void ScreenSelector::setFixedSize(const QSize& size)
+void ScreenSelector::setFixedSize(const QSize &size)
 {
     m_fixedSize = size;
 }
 
-void ScreenSelector::setBoundingRect(const QRect& rect)
+void ScreenSelector::setBoundingRect(const QRect &rect)
 {
     m_boundingRect = rect;
 }
 
-void ScreenSelector::setSelectedRect(const QRect& rect)
+void ScreenSelector::setSelectedRect(const QRect &rect)
 {
     m_selectionRect = rect;
     lockGeometry(m_selectionRect.normalized());
@@ -57,6 +58,20 @@ void ScreenSelector::setSelectedRect(const QRect& rect)
 
 void ScreenSelector::startSelection(QPoint initialPos)
 {
+#ifdef Q_OS_LINUX
+    const auto p = MAIN.geometry().center();
+    const auto id = MAIN.window()->winId();
+    for (auto screen : QGuiApplication::screens()) {
+        if (screen->geometry().contains(p)) {
+            m_useDBus = screen->grabWindow(id, p.x(), p.y(), 1, 1).isNull();
+            if (m_useDBus) {
+                emit screenSelected(m_selectionRect);
+                return;
+            }
+            break;
+        }
+    }
+#endif
     m_selectionInProgress = false;
     grabMouse();
     grabKeyboard();
@@ -104,7 +119,7 @@ bool ScreenSelector::onMousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton && !m_selectionInProgress) {
         m_selectionInProgress = true;
         show();
-        m_selectionRect = QRect(event->globalPos(), QSize(1,1));
+        m_selectionRect = QRect(event->globalPosition().toPoint(), QSize(1, 1));
         lockGeometry(m_selectionRect.normalized());
     }
     return true;
@@ -113,9 +128,9 @@ bool ScreenSelector::onMousePressEvent(QMouseEvent *event)
 bool ScreenSelector::onMouseMoveEvent(QMouseEvent *event)
 {
     if (m_boundingRect.x() > -1 &&
-        !m_boundingRect.contains(event->globalX(), event->globalY())) {
-        int x = qBound(m_boundingRect.left(), event->globalX(), m_boundingRect.right());
-        int y = qBound(m_boundingRect.top(), event->globalY(), m_boundingRect.bottom());
+            !m_boundingRect.contains(event->globalPosition().toPoint())) {
+        int x = qBound(m_boundingRect.left(), qRound(event->globalPosition().x()), m_boundingRect.right());
+        int y = qBound(m_boundingRect.top(), qRound(event->globalPosition().y()), m_boundingRect.bottom());
         QCursor::setPos(x, y);
         return true;
     }
@@ -123,19 +138,19 @@ bool ScreenSelector::onMouseMoveEvent(QMouseEvent *event)
     if (m_selectionInProgress) {
         if (m_fixedSize.width() > -1) {
             // Center the selection around the cursor
-            int x = event->globalX() - m_fixedSize.width() / 2;
-            int y = event->globalY() - m_fixedSize.height() /  2;
+            int x = qRound(event->globalPosition().x()) - m_fixedSize.width() / 2;
+            int y = qRound(event->globalPosition().y()) - m_fixedSize.height() /  2;
             if (m_boundingRect.x() > -1) {
                 x = qBound(m_boundingRect.left(), x, m_boundingRect.right() - m_fixedSize.width());
                 y = qBound(m_boundingRect.top(), y, m_boundingRect.bottom() - m_fixedSize.height());
             }
-            m_selectionRect = QRect(QPoint(x,y), m_fixedSize);
-            m_selectionPoint = event->globalPos();
+            m_selectionRect = QRect(QPoint(x, y), m_fixedSize);
+            m_selectionPoint = event->globalPosition().toPoint();
             emit screenSelected(m_selectionRect);
             emit pointSelected(m_selectionPoint);
         } else {
-            m_selectionRect.setWidth(event->globalX() - m_selectionRect.x());
-            m_selectionRect.setHeight(event->globalY() - m_selectionRect.y());
+            m_selectionRect.setWidth(qRound(event->globalPosition().x()) - m_selectionRect.x());
+            m_selectionRect.setHeight(qRound(event->globalPosition().y()) - m_selectionRect.y());
 
             if (m_selectionRect.width() == 0) {
                 m_selectionRect.setWidth(1);
@@ -151,14 +166,14 @@ bool ScreenSelector::onMouseMoveEvent(QMouseEvent *event)
 
 bool ScreenSelector::onMouseReleaseEvent(QMouseEvent *event)
 {
-    if(event->button() == Qt::LeftButton && m_selectionInProgress == true ) {
+    if (event->button() == Qt::LeftButton && m_selectionInProgress == true ) {
         release();
         emit screenSelected(m_selectionRect);
     }
     return true;
 }
 
-bool ScreenSelector::onKeyPressEvent(QKeyEvent* event)
+bool ScreenSelector::onKeyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Escape) {
         release();
@@ -168,7 +183,7 @@ bool ScreenSelector::onKeyPressEvent(QKeyEvent* event)
     return true;
 }
 
-void ScreenSelector::lockGeometry(const QRect& rect)
+void ScreenSelector::lockGeometry(const QRect &rect)
 {
     setGeometry(rect);
     setMinimumSize(rect.size());

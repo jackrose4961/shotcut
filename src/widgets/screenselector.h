@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 Meltytech, LLC
+ * Copyright (c) 2014-2025 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,17 +24,21 @@ class ScreenSelector : public QFrame
 {
     Q_OBJECT
 public:
-    ScreenSelector(QWidget* parent = 0);
-    void setFixedSize(const QSize& size);
-    void setBoundingRect(const QRect& rect);
-    void setSelectedRect(const QRect& rect);
+    ScreenSelector(QWidget *parent = 0);
+    void setFixedSize(const QSize &size);
+    void setBoundingRect(const QRect &rect);
+    void setSelectedRect(const QRect &rect);
+    bool useDBus() const
+    {
+        return m_useDBus;
+    }
 
 public slots:
-    void startSelection(QPoint initialPos = QPoint(-1,-1));
+    void startSelection(QPoint initialPos = QPoint(-1, -1));
 
 signals:
-    void screenSelected(const QRect&);
-    void pointSelected(const QPoint&);
+    void screenSelected(const QRect &);
+    void pointSelected(const QPoint &);
     void cancelled();
 
 public:
@@ -47,7 +51,7 @@ protected:
     bool eventFilter(QObject *, QEvent *event);
 
 private:
-    void lockGeometry(const QRect& rect);
+    void lockGeometry(const QRect &rect);
     void release();
 
     bool m_selectionInProgress;
@@ -55,6 +59,7 @@ private:
     QPoint m_selectionPoint;
     QSize m_fixedSize;
     QRect m_boundingRect;
+    bool m_useDBus;
 };
 
 #endif // SCREENSELECTOR_H

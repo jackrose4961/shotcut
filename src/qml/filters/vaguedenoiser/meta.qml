@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Meltytech, LLC
+ * Copyright (c) 2020-2022 Meltytech, LLC
  * Written by Austin Brooks <ab.shotcut@outlook.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,16 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-
-import QtQuick 2.2
-import org.shotcut.qml 1.0
-
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr('Reduce Noise: Wavelet')
+    keywords: qsTr('vague denoise artifact dirt', 'search keywords for the Reduce Noise: Wavelet video filter') + ' reduce noise: wavelet'
     objectName: 'vaguedenoiser'
     mlt_service: 'avfilter.vaguedenoiser'
     qml: 'ui.qml'
+    icon: 'icon.webp'
 }

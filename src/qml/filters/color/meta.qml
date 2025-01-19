@@ -1,13 +1,16 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Color Grading")
+    keywords: qsTr('correct shadows lift midtones gamma highlights gain hue lightness brightness value', 'search keywords for the Color Grading video filter') + ' color grading'
     mlt_service: "lift_gamma_gain"
     qml: "ui.qml"
+    icon: 'icon.webp'
     isFavorite: true
     gpuAlt: "movit.lift_gamma_gain"
+
     keyframes {
         parameters: [
             Parameter {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 Meltytech, LLC
+ * Copyright (c) 2014-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,37 +14,42 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
-import org.shotcut.qml 1.0
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
+import org.shotcut.qml
 
 Item {
+    property alias duration: timeSpinner.value
+    property bool _blockUpdate: false
+
     width: 100
     height: 50
     objectName: 'fadeIn'
-    property alias duration: timeSpinner.value
-
     Component.onCompleted: {
         if (filter.isNew) {
-            filter.set('alpha', 1)
-            duration = Math.ceil(settings.videoInDuration * profile.fps)
+            filter.set('alpha', 1);
+            duration = Math.ceil(settings.videoInDuration * profile.fps);
         } else if (filter.animateIn === 0) {
             // Convert legacy filter.
-            duration = filter.duration
-            filter.set('in', producer.in )
-            filter.set('out', producer.out )
+            duration = filter.duration;
+            filter.set('in', producer.in);
+            filter.set('out', producer.out);
         } else {
-            duration = filter.animateIn
+            duration = filter.animateIn;
         }
-        alphaCheckbox.checked = filter.get('alpha') != 1
+        alphaCheckbox.checked = filter.get('alpha') != 1;
     }
 
     Connections {
+        function onAnimateInChanged() {
+            _blockUpdate = true;
+            duration = filter.animateIn;
+            _blockUpdate = false;
+        }
+
         target: filter
-        onAnimateInChanged: duration = filter.animateIn
     }
 
     ColumnLayout {
@@ -52,33 +57,45 @@ Item {
         anchors.margins: 8
 
         RowLayout {
-            Label { text: qsTr('Duration') }
+            Label {
+                id: durationLabel
+                text: qsTr('Duration')
+            }
+
             Shotcut.TimeSpinner {
                 id: timeSpinner
+
                 minimumValue: 2
                 maximumValue: 5000
                 onValueChanged: {
-                    filter.animateIn = duration
-                    filter.resetProperty('opacity')
-                    filter.set('opacity', 0, 0, KeyframesModel.SmoothInterpolation)
-                    filter.set('opacity', 1, duration - 1)
+                    if (_blockUpdate)
+                        return;
+                    filter.startUndoParameterCommand(durationLabel.text);
+                    filter.animateIn = duration;
+                    filter.resetProperty('opacity');
+                    filter.set('opacity', 0, 0, KeyframesModel.SmoothNaturalInterpolation);
+                    filter.set('opacity', 1, Math.min(duration, filter.duration) - 1);
+                    filter.endUndoCommand();
                 }
                 onSetDefaultClicked: {
-                    duration = Math.ceil(settings.videoInDuration * profile.fps)
+                    duration = Math.ceil(settings.videoInDuration * profile.fps);
                 }
                 onSaveDefaultClicked: {
-                    settings.videoInDuration = duration / profile.fps
+                    settings.videoInDuration = duration / profile.fps;
                 }
             }
         }
+
         CheckBox {
             id: alphaCheckbox
+
             text: qsTr('Adjust opacity instead of fade with black')
             // When =-1, alpha follows opacity value.
-            onClicked: filter.set('alpha', checked? -1 : 1)
+            onClicked: filter.set('alpha', checked ? -1 : 1)
         }
+
         Item {
-            Layout.fillHeight: true;
+            Layout.fillHeight: true
         }
     }
 }

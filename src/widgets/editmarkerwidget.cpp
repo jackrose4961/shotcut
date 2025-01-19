@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,11 +17,11 @@
 
 #include "editmarkerwidget.h"
 
-#include "Logger.h"
 #include "mltcontroller.h"
 #include "qmltypes/qmlapplication.h"
 #include "widgets/timespinbox.h"
 #include "util.h"
+#include "settings.h"
 
 #include <QColorDialog>
 #include <QDebug>
@@ -32,24 +32,25 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 
-EditMarkerWidget::EditMarkerWidget(QWidget *parent, const QString& text, const QColor& color, int start, int end, int maxEnd)
+EditMarkerWidget::EditMarkerWidget(QWidget *parent, const QString &text, const QColor &color,
+                                   int start, int end, int maxEnd)
     : QWidget(parent)
 {
-    QGridLayout* grid = new QGridLayout();
+    QGridLayout *grid = new QGridLayout();
     setLayout(grid);
     grid->setColumnMinimumWidth(0, 125);
     grid->setColumnMinimumWidth(1, 125);
 
     m_textField = new QLineEdit(text);
     connect(m_textField, SIGNAL(editingFinished()), SIGNAL(valuesChanged()));
-    m_textField->setToolTip(tr("Set the text for this marker."));
+    m_textField->setToolTip(tr("Set the name for this marker."));
     grid->addWidget(m_textField, 0, 0, 1, 2);
 
     m_colorButton = new QPushButton(tr("Color..."));
     connect(m_colorButton, SIGNAL(clicked()), SLOT(on_colorButton_clicked()));
     grid->addWidget(m_colorButton, 1, 0, Qt::AlignRight);
     m_colorLabel = new QLabel(color.name(QColor::HexRgb));
-    m_colorLabel->setStyleSheet(QString("color: %1; background-color: %2")
+    m_colorLabel->setStyleSheet(QStringLiteral("color: %1; background-color: %2")
                                 .arg(Util::textColor(color), color.name()));
     grid->addWidget(m_colorLabel, 1, 1);
 
@@ -101,7 +102,8 @@ int EditMarkerWidget::getEnd()
     return m_endSpinner->value();
 }
 
-void EditMarkerWidget::setValues(const QString& text, const QColor& color, int start, int end, int maxEnd)
+void EditMarkerWidget::setValues(const QString &text, const QColor &color, int start, int end,
+                                 int maxEnd)
 {
     QSignalBlocker textBlocker(m_textField);
     QSignalBlocker colorBlocker(m_colorLabel);
@@ -109,7 +111,7 @@ void EditMarkerWidget::setValues(const QString& text, const QColor& color, int s
     QSignalBlocker endBlocker(m_endSpinner);
     m_textField->setText(text);
     m_colorLabel->setText(color.name(QColor::HexRgb));
-    m_colorLabel->setStyleSheet(QString("color: %1; background-color: %2")
+    m_colorLabel->setStyleSheet(QStringLiteral("color: %1; background-color: %2")
                                 .arg(Util::textColor(color), color.name()));
     m_startSpinner->setMinimum(0);
     m_startSpinner->setMaximum(end);
@@ -125,11 +127,14 @@ void EditMarkerWidget::on_colorButton_clicked()
 {
     QColor color = QColor(m_colorLabel->text());
     QColorDialog dialog(color);
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
+    dialog.setOptions(QColorDialog::DontUseNativeDialog);
+#endif
     dialog.setModal(QmlApplication::dialogModality());
     if (dialog.exec() == QDialog::Accepted) {
         auto newColor = dialog.currentColor();
         m_colorLabel->setText(newColor.name(QColor::HexRgb));
-        m_colorLabel->setStyleSheet(QString("color: %1; background-color: %2")
+        m_colorLabel->setStyleSheet(QStringLiteral("color: %1; background-color: %2")
                                     .arg(Util::textColor(newColor), newColor.name()));
     }
     emit valuesChanged();
@@ -153,7 +158,7 @@ void EditMarkerWidget::updateDuration()
 {
     if (MLT.producer()) {
         int duration = m_endSpinner->value() - m_startSpinner->value() + 1;
-        m_durationLabel->setText(MLT.producer()->frames_to_time(duration));
+        m_durationLabel->setText(MLT.producer()->frames_to_time(duration, Settings.timeFormat()));
     } else {
         m_durationLabel->setText("--:--:--:--");
     }

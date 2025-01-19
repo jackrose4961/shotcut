@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Meltytech, LLC
+ * Copyright (c) 2020-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,21 +14,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.2
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Controls
 
 MouseArea {
-    anchors.fill: parent
     property alias text: tip.text
+    property alias metrics: fontMetrics
+
+    anchors.fill: parent
     propagateComposedEvents: true
     acceptedButtons: Qt.NoButton
 
     ToolTip {
         id: tip
-        visible: text ? parent.containsMouse : false
+
+        visible: text ? parent.containsMouse & parent.enabled : false
         delay: 1000
         timeout: 5000
         Component.onCompleted: parent.hoverEnabled = true
+
+        FontMetrics {
+            id: fontMetrics
+
+            font: tip.font
+        }
     }
 }

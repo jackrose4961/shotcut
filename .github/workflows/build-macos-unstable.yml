@@ -2,12 +2,13 @@ name: build-shotcut-macos-unstable
 
 on:
   workflow_dispatch:
-#  schedule:
+  schedule:
     # nightly
-#    - cron: '0 12 * * *'
+    - cron: '0 12 * * *'
 
 jobs:
   build:
+    if: ${{ github.repository_owner == 'mltframework' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download from S3
@@ -19,7 +20,7 @@ jobs:
           s3cmd --access_key=${{ secrets.AWS_ACCESS_KEY }} --secret_key=${{ secrets.AWS_SECRET_KEY }} --stop-on-error get s3://builds.us.meltytech/shotcut/shotcut-macos-unsigned-$VERSION.dmg
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: unsigned-dmg
           path: |

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019 Meltytech, LLC
+ * Copyright (c) 2015-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ PlaylistTable::PlaylistTable(QWidget *parent)
 
 }
 
-void PlaylistTable::keyPressEvent(QKeyEvent* event)
+void PlaylistTable::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right) {
         /* make sure we ignore left/right keypresses here so it can bubble its way up to the top
@@ -44,9 +44,9 @@ void PlaylistTable::keyPressEvent(QKeyEvent* event)
     event->ignore();
 }
 
-void PlaylistTable::dropEvent(QDropEvent* event)
+void PlaylistTable::dropEvent(QDropEvent *event)
 {
-    QModelIndex index = indexAt(event->pos());
+    QModelIndex index = indexAt(event->position().toPoint());
     if (event->dropAction() == Qt::MoveAction && index.row() == -1) {
         event->acceptProposedAction();
         emit movedToEnd();

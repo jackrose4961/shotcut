@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
-** Copyright (c) 2020 Meltytech, LLC
+** Copyright (c) 2020-2023 Meltytech, LLC
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -37,7 +37,6 @@
 #include <QQuickTextDocument>
 
 #include <QtGui/QTextCharFormat>
-#include <QtCore/QTextCodec>
 
 #include <qqmlfile.h>
 
@@ -52,8 +51,10 @@ class QmlRichText : public QObject
     Q_ENUMS(HAlignment)
 
     Q_PROPERTY(QQuickItem *target READ target WRITE setTarget NOTIFY targetChanged)
-    Q_PROPERTY(int cursorPosition READ cursorPosition WRITE setCursorPosition NOTIFY cursorPositionChanged)
-    Q_PROPERTY(int selectionStart READ selectionStart WRITE setSelectionStart NOTIFY selectionStartChanged)
+    Q_PROPERTY(int cursorPosition READ cursorPosition WRITE setCursorPosition NOTIFY
+               cursorPositionChanged)
+    Q_PROPERTY(int selectionStart READ selectionStart WRITE setSelectionStart NOTIFY
+               selectionStartChanged)
     Q_PROPERTY(int selectionEnd READ selectionEnd WRITE setSelectionEnd NOTIFY selectionEndChanged)
     Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor NOTIFY textColorChanged)
     Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY fontFamilyChanged)
@@ -69,14 +70,26 @@ class QmlRichText : public QObject
 public:
     QmlRichText();
 
-    QQuickItem *target() { return m_target; }
+    QQuickItem *target()
+    {
+        return m_target;
+    }
     void setTarget(QQuickItem *target);
     void setCursorPosition(int position);
     void setSelectionStart(int position);
     void setSelectionEnd(int position);
-    int cursorPosition() const { return m_cursorPosition; }
-    int selectionStart() const { return m_selectionStart; }
-    int selectionEnd() const { return m_selectionEnd; }
+    int cursorPosition() const
+    {
+        return m_cursorPosition;
+    }
+    int selectionStart() const
+    {
+        return m_selectionStart;
+    }
+    int selectionEnd() const
+    {
+        return m_selectionEnd;
+    }
     QString fontFamily() const;
     QColor textColor() const;
     Qt::Alignment alignment() const;
@@ -87,7 +100,10 @@ public:
     int fontSize() const;
     QUrl fileUrl() const;
     QString text() const;
-    QSizeF size() const { return m_doc->size(); }
+    QSizeF size() const
+    {
+        return m_doc->size();
+    }
 
 public slots:
     void setBold(bool arg);
@@ -98,11 +114,12 @@ public slots:
     void setFontFamily(const QString &arg);
     void setFileUrl(const QUrl &arg);
     void setText(const QString &arg);
-    void saveAs(const QUrl &arg, const QString &fileType);
+    void saveAs(const QUrl &arg, QString fileType = QString());
     void insertTable(int rows = 1, int columns = 2, int border = 0);
     void indentLess();
     void indentMore();
     void pastePlain();
+    void reset();
 
 signals:
     void targetChanged();
@@ -122,7 +139,6 @@ signals:
     void sizeChanged();
 
 private:
-    void reset();
     QTextCursor textCursor() const;
     void mergeFormatOnWordOrSelection(const QTextCharFormat &format);
     QQuickItem *m_target;

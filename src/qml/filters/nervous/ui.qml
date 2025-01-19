@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Meltytech, LLC
+ * Copyright (c) 2019-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,24 +14,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
-    width: 350
-    height: 100
     property string amount: 'av.frames'
     property int amountDefault: 2
 
+    width: 350
+    height: 100
     Component.onCompleted: {
         if (filter.isNew) {
-            filter.set(amount, amountDefault)
-            filter.savePreset(preset.parameters)
+            filter.set(amount, amountDefault);
+            filter.savePreset(preset.parameters);
         }
-        amountSlider.value = filter.get(amount)
+        amountSlider.value = filter.get(amount);
     }
 
     GridLayout {
@@ -43,8 +42,10 @@ Item {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: [amount]
             Layout.columnSpan: parent.columns - 1
             onPresetSelected: amountSlider.value = filter.get(amount)
@@ -54,8 +55,10 @@ Item {
             text: qsTr('Amount')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: amountSlider
+
             minimumValue: 2
             maximumValue: Math.round(profile.fps)
             stepSize: 1
@@ -63,10 +66,13 @@ Item {
             spinnerWidth: 110
             onValueChanged: filter.set(amount, value)
         }
+
         Shotcut.UndoButton {
             onClicked: amountSlider.value = amountDefault
         }
 
-        Item { Layout.fillHeight: true}
+        Item {
+            Layout.fillHeight: true
+        }
     }
 }

@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
@@ -7,6 +7,7 @@ Metadata {
     mlt_service: "frei0r.alphaspot"
     isHidden: true
     qml: "ui.qml"
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -15,7 +16,6 @@ Metadata {
             Parameter {
                 name: qsTr('Horizontal')
                 property: '1'
-                isSimple: true
                 isCurve: true
                 minimum: -1
                 maximum: 1
@@ -23,7 +23,6 @@ Metadata {
             Parameter {
                 name: qsTr('Vertical')
                 property: '2'
-                isSimple: true
                 isCurve: true
                 minimum: -1
                 maximum: 1
@@ -31,7 +30,6 @@ Metadata {
             Parameter {
                 name: qsTr('Width')
                 property: '3'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -39,7 +37,6 @@ Metadata {
             Parameter {
                 name: qsTr('Height')
                 property: '4'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1

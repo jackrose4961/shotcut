@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 Meltytech, LLC
+ * Copyright (c) 2012-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,14 +19,11 @@
 #define PLAYLISTMODEL_H
 
 #include <QAbstractTableModel>
-#include <qmimedata.h>
+#include <QMimeData>
 #include <QStringList>
-#include "mltcontroller.h"
 #include "MltPlaylist.h"
 
-#define kDetailedMode "detailed"
-#define kIconsMode "icons"
-#define kTiledMode "tiled"
+
 
 class PlaylistModel : public QAbstractTableModel
 {
@@ -39,6 +36,14 @@ public:
         Icons,
     };
 
+    enum MediaType {
+        Video,
+        Image,
+        Audio,
+        Other,
+        Pending
+    };
+
     enum Columns {
         COLUMN_INDEX = 0,
         COLUMN_THUMBNAIL,
@@ -47,6 +52,9 @@ public:
         COLUMN_DURATION,
         COLUMN_START,
         COLUMN_DATE,
+        COLUMN_MEDIA_TYPE,
+        COLUMN_COMMENT,
+        COLUMN_BIN,
         COLUMN_COUNT
     };
 
@@ -58,6 +66,10 @@ public:
         FIELD_DURATION,
         FIELD_START,
         FIELD_DATE,
+        FIELD_MEDIA_TYPE,
+        FIELD_MEDIA_TYPE_ENUM,
+        FIELD_COMMENT,
+        FIELD_BIN
     };
 
     static const int THUMBNAIL_WIDTH = 80;
@@ -65,31 +77,36 @@ public:
 
     explicit PlaylistModel(QObject *parent = 0);
     ~PlaylistModel();
-    int rowCount(const QModelIndex& parent = QModelIndex()) const;
-    int columnCount(const QModelIndex& parent = QModelIndex()) const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     Qt::DropActions supportedDropActions() const;
-    bool insertRows(int row, int count, const QModelIndex & parent = QModelIndex());
-    bool removeRows(int row, int count, const QModelIndex & parent = QModelIndex());
-    bool moveRows(const QModelIndex &sourceParent, int sourceRow, int count, const QModelIndex &destinationParent, int destinationChild);
+    bool insertRows(int row, int count, const QModelIndex &parent = QModelIndex());
+    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
+    bool moveRows(const QModelIndex &sourceParent, int sourceRow, int count,
+                  const QModelIndex &destinationParent, int destinationChild);
     void sort(int column, Qt::SortOrder order = Qt::AscendingOrder);
     Qt::ItemFlags flags(const QModelIndex &index) const;
     QStringList mimeTypes() const;
     QMimeData *mimeData(const QModelIndexList &indexes) const;
-    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
-    QModelIndex incrementIndex(const QModelIndex& index) const;
-    QModelIndex decrementIndex(const QModelIndex& index) const;
+    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
+                      const QModelIndex &parent);
     QModelIndex createIndex(int row, int column) const;
     void createIfNeeded();
     void showThumbnail(int row);
     void refreshThumbnails();
-    Mlt::Playlist* playlist() { return m_playlist; }
-    void setPlaylist(Mlt::Playlist& playlist);
+    Mlt::Playlist *playlist()
+    {
+        return m_playlist;
+    }
+    void setPlaylist(Mlt::Playlist &playlist);
     void setInOut(int row, int in, int out);
 
     ViewMode viewMode() const;
     void setViewMode(ViewMode mode);
+    void setBin(int row, const QString &name);
+    void renameBin(const QString &bin, const QString &newName = QString());
 
 signals:
     void created();
@@ -101,14 +118,15 @@ signals:
     void moveClip(int from, int to);
     void inChanged(int in);
     void outChanged(int out);
+    void removing(Mlt::Service *service);
 
 public slots:
     void clear();
     void load();
-    void append(Mlt::Producer&, bool emitModified = true);
-    void insert(Mlt::Producer&, int row);
+    void append(Mlt::Producer &, bool emitModified = true);
+    void insert(Mlt::Producer &, int row);
     void remove(int row);
-    void update(int row, Mlt::Producer& producer, bool copyFilters = false);
+    void update(int row, Mlt::Producer &producer, bool copyFilters = false);
     void updateThumbnails(int row);
     void appendBlank(int frames);
     void insertBlank(int frames, int row);
@@ -116,10 +134,13 @@ public slots:
     void move(int from, int to);
 
 private:
-    Mlt::Playlist* m_playlist;
+    Mlt::Playlist *m_playlist;
     int m_dropRow;
     ViewMode m_mode;
     QList<int> m_rowsRemoved;
+
+private slots:
+    void onRowsAboutToBeRemoved(const QModelIndex &parent, int first, int last);
 };
 
 #endif // PLAYLISTMODEL_H

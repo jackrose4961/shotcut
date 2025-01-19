@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Meltytech, LLC
- * Author: Brian Matherly <code@brianmatherly.com>
+ * Copyright (c) 2015-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,10 +24,10 @@
 #include <QtWidgets/QScrollArea>
 #include <QAction>
 
-ScopeDock::ScopeDock(ScopeController* scopeController, ScopeWidget* scopeWidget) :
+ScopeDock::ScopeDock(ScopeController *scopeController, ScopeWidget *scopeWidget) :
     QDockWidget()
-  , m_scopeController(scopeController)
-  , m_scopeWidget(scopeWidget)
+    , m_scopeController(scopeController)
+    , m_scopeWidget(scopeWidget)
 {
     LOG_DEBUG() << "begin";
     setObjectName(m_scopeWidget->objectName() + "Dock");
@@ -40,10 +39,11 @@ ScopeDock::ScopeDock(ScopeController* scopeController, ScopeWidget* scopeWidget)
     QDockWidget::setWindowTitle(m_scopeWidget->getTitle());
 
     connect(toggleViewAction(), SIGNAL(toggled(bool)), this, SLOT(onActionToggled(bool)));
+    connect(this, &QDockWidget::dockLocationChanged, m_scopeWidget, &ScopeWidget::moved);
     LOG_DEBUG() << "end";
 }
 
-void ScopeDock::resizeEvent(QResizeEvent* e)
+void ScopeDock::resizeEvent(QResizeEvent *e)
 {
     if (width() > height()) {
         m_scopeWidget->setOrientation(Qt::Horizontal);
@@ -55,10 +55,12 @@ void ScopeDock::resizeEvent(QResizeEvent* e)
 
 void ScopeDock::onActionToggled(bool checked)
 {
-    if(checked) {
-        connect(m_scopeController, SIGNAL(newFrame(const SharedFrame&)), m_scopeWidget, SLOT(onNewFrame(const SharedFrame&)));
+    if (checked) {
+        connect(m_scopeController, SIGNAL(newFrame(const SharedFrame &)), m_scopeWidget,
+                SLOT(onNewFrame(const SharedFrame &)));
         MLT.refreshConsumer();
     } else {
-        disconnect(m_scopeController, SIGNAL(newFrame(const SharedFrame&)), m_scopeWidget, SLOT(onNewFrame(const SharedFrame&)));
+        disconnect(m_scopeController, SIGNAL(newFrame(const SharedFrame &)), m_scopeWidget,
+                   SLOT(onNewFrame(const SharedFrame &)));
     }
 }

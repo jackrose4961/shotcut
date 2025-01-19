@@ -1,31 +1,38 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     objectName: 'cropRectangle'
     name: qsTr('Crop: Rectangle')
+    keywords: qsTr('trim remove square', 'search keywords for the Crop: Rectangle video filter') + ' crop: rectangle'
     mlt_service: 'qtcrop'
     qml: 'ui.qml'
     vui: 'vui.qml'
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
-        simpleProperties: ['rect', 'radius']
+        simpleProperties: ['rect', 'radius', 'color']
         parameters: [
             Parameter {
                 name: qsTr('Position / Size')
                 property: 'rect'
-                isSimple: true
                 isRectangle: true
             },
             Parameter {
                 name: qsTr('Corner radius')
                 property: 'radius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
+            },
+            Parameter {
+                name: qsTr('Padding color')
+                property: 'color'
+                isCurve: false
+                isColor: true
             }
         ]
     }

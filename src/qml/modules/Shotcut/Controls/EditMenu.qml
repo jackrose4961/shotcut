@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,71 +14,55 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+import QtQuick
+import Shotcut.Controls as Shotcut
 
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-
-Menu {
+Item {
     property var control: parent
+    property alias readOnly: contextMenu.readOnly
 
-    id: menu
-    width: 220
+    function popup() {
+        contextMenu.popup();
+    }
 
-    MenuItem {
-        action: Action {
-            text: qsTr('Undo') + (application.OS === 'OS X'? '    ⌘Z' : ' (Ctrl+Z)')
-            onTriggered: control.undo()
-        }
+    Shotcut.EditContextMenu {
+        id: contextMenu
     }
-    MenuItem {
-        action: Action {
-            text: qsTr('Redo') + (application.OS === 'Windows'? ' (Ctrl+Y)' : application.OS === 'OS X'? '    ⇧⌘Z' : ' (Ctrl+Shift+Z)')
-            onTriggered: control.redo()
+
+    Connections {
+        function onUndoTriggered() {
+            control.undo();
         }
-    }
-    MenuSeparator {}
-    MenuItem {
-        action: Action {
-            text: qsTr('Cut') + (application.OS === 'OS X'? '    ⌘X' : ' (Ctrl+X)')
-            onTriggered: control.cut()
+
+        function onRedoTriggered() {
+            control.redo();
         }
-    }
-    MenuItem {
-        action: Action {
-            text: qsTr('Copy') + (application.OS === 'OS X'? '    ⌘C' : ' (Ctrl+C)')
-            onTriggered: control.copy()
+
+        function onCutTriggered() {
+            control.cut();
         }
-    }
-    MenuItem {
-        action: Action {
-            text: qsTr('Paste') + (application.OS === 'OS X'? '    ⌘V' : ' (Ctrl+V)')
-            onTriggered: control.paste()
+
+        function onCopyTriggered() {
+            control.copy();
         }
-    }
-    MenuItem {
-        action: Action {
-            text: qsTr('Delete')
-            onTriggered: parent.control(control.selectionStart, control.selectionEnd)
+
+        function onPasteTriggered() {
+            control.paste();
         }
-    }
-    MenuItem {
-        action: Action {
-            text: qsTr('Clear')
-            onTriggered: {
-                control.selectAll()
-                control.remove(control.selectionStart, control.selectionEnd)
-            }
+
+        function onDeleteTriggered() {
+            control.remove(control.selectionStart, control.selectionEnd);
         }
-    }
-    MenuSeparator {}
-    MenuItem {
-        action: Action {
-            text: qsTr('Select All') + (application.OS === 'OS X'? '    ⌘A' : ' (Ctrl+A)')
-            onTriggered: control.selectAll()
+
+        function onClearTriggered() {
+            control.selectAll();
+            control.remove(control.selectionStart, control.selectionEnd);
         }
-    }
-    MenuItem {
-        text: qsTr('Cancel')
-        onTriggered: menu.dismiss()
+
+        function onSelectAllTriggered() {
+            control.selectAll();
+        }
+
+        target: contextMenu
     }
 }

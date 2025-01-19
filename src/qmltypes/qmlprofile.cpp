@@ -19,7 +19,7 @@
 #include "qmlprofile.h"
 #include "mltcontroller.h"
 
-QmlProfile& QmlProfile::singleton()
+QmlProfile &QmlProfile::singleton()
 {
     static QmlProfile instance;
     return instance;
@@ -48,4 +48,9 @@ double QmlProfile::aspectRatio() const
 double QmlProfile::fps() const
 {
     return MLT.profile().fps();
+}
+
+double QmlProfile::sar() const
+{
+    return MLT.profile().sar();
 }

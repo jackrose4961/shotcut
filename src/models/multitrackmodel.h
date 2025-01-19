@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <QString>
 #include <MltTractor.h>
 #include <MltPlaylist.h>
+#include <memory>
 
 typedef enum {
     PlaylistTrackType = 0,
@@ -51,6 +52,7 @@ public:
     /// Two level model: tracks and clips on track
     enum {
         NameRole = Qt::UserRole + 1,
+        CommentRole,     /// clip only
         ResourceRole,    /// clip only
         ServiceRole,     /// clip only
         IsBlankRole,     /// clip only
@@ -71,15 +73,25 @@ public:
         FileHashRole,    /// clip only
         SpeedRole,       /// clip only
         IsFilteredRole,
+        IsTopVideoRole,   /// track only
         IsBottomVideoRole,/// track only
-        AudioIndexRole   /// clip only
+        IsTopAudioRole,   /// track only
+        IsBottomAudioRole,/// track only
+        AudioIndexRole,   /// clip only
+        GroupRole,        /// clip only
     };
 
     explicit MultitrackModel(QObject *parent = 0);
     ~MultitrackModel();
 
-    Mlt::Tractor* tractor() const { return m_tractor; }
-    const TrackList& trackList() const { return m_trackList; }
+    Mlt::Tractor *tractor() const
+    {
+        return m_tractor;
+    }
+    const TrackList &trackList() const
+    {
+        return m_trackList;
+    }
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent) const;
@@ -89,7 +101,7 @@ public:
     QModelIndex makeIndex(int trackIndex, int clipIndex) const;
     QModelIndex parent(const QModelIndex &index) const;
     QHash<int, QByteArray> roleNames() const;
-    Q_INVOKABLE void audioLevelsReady(const QModelIndex &index);
+    Q_INVOKABLE void audioLevelsReady(const QPersistentModelIndex &index);
     bool createIfNeeded();
     void addBackgroundTrack();
     int addAudioTrack();
@@ -104,15 +116,21 @@ public:
     void setTrackHeight(int height);
     double scaleFactor() const;
     void setScaleFactor(double scale);
-    bool isTransition(Mlt::Playlist& playlist, int clipIndex) const;
+    bool isTransition(Mlt::Playlist &playlist, int clipIndex) const;
     void insertTrack(int trackIndex, TrackType type = VideoTrackType);
+    void moveTrack(int fromTrackIndex, int toTrackIndex);
     void insertOrAdjustBlankAt(QList<int> tracks, int position, int length);
     bool mergeClipWithNext(int trackIndex, int clipIndex, bool dryrun);
-    Mlt::ClipInfo *findClipByUuid(const QUuid& uuid, int& trackIndex, int& clipIndex);
+    std::unique_ptr<Mlt::ClipInfo> findClipByUuid(const QUuid &uuid, int &trackIndex, int &clipIndex);
+    std::unique_ptr<Mlt::ClipInfo> getClipInfo(int trackIndex, int clipIndex);
+    QString getTrackName(int trackIndex);
+    int bottomVideoTrackIndex() const;
+    int mltIndexForTrack(int trackIndex) const;
+    bool checkForEmptyTracks(int trackIndex);
 
 signals:
     void created();
-    void loaded();
+    void aboutToClose();
     void closed();
     void modified();
     void seeked(int position, bool seekPlayer = true);
@@ -125,6 +143,8 @@ signals:
     void appended(int trackIndex, int clipIndex);
     void inserted(int trackIndex, int clipIndex);
     void overWritten(int trackIndex, int clipIndex);
+    void removing(Mlt::Service *service);
+    void noMoreEmptyTracks(bool isAudio);
 
 public slots:
     void refreshTrackList();
@@ -137,11 +157,14 @@ public slots:
     void notifyClipIn(int trackIndex, int clipIndex);
     int trimClipOut(int trackIndex, int clipIndex, int delta, bool ripple, bool rippleAllTracks);
     void notifyClipOut(int trackIndex, int clipIndex);
-    bool moveClip(int fromTrack, int toTrack, int clipIndex, int position, bool ripple, bool rippleAllTracks);
-    int overwriteClip(int trackIndex, Mlt::Producer& clip, int position, bool seek = true);
-    QString overwrite(int trackIndex, Mlt::Producer& clip, int position, bool seek = true, bool notify = true);
-    int insertClip(int trackIndex, Mlt::Producer& clip, int position, bool rippleAllTracks, bool seek = true, bool notify = true);
-    int appendClip(int trackIndex, Mlt::Producer &clip);
+    bool moveClip(int fromTrack, int toTrack, int clipIndex, int position, bool ripple,
+                  bool rippleAllTracks);
+    int overwriteClip(int trackIndex, Mlt::Producer &clip, int position, bool seek = true);
+    QString overwrite(int trackIndex, Mlt::Producer &clip, int position, bool seek = true,
+                      bool notify = true);
+    int insertClip(int trackIndex, Mlt::Producer &clip, int position, bool rippleAllTracks,
+                   bool seek = true, bool notify = true);
+    int appendClip(int trackIndex, Mlt::Producer &clip, bool seek = true, bool notify = true);
     void removeClip(int trackIndex, int clipIndex, bool rippleAllTracks);
     void liftClip(int trackIndex, int clipIndex);
     void splitClip(int trackIndex, int clipIndex, int position);
@@ -154,9 +177,9 @@ public slots:
     void removeTransitionByTrimIn(int trackIndex, int clipIndex, int delta);
     void removeTransitionByTrimOut(int trackIndex, int clipIndex, int delta);
     bool trimTransitionInValid(int trackIndex, int clipIndex, int delta);
-    void trimTransitionIn(int trackIndex, int clipIndex, int delta);
+    void trimTransitionIn(int trackIndex, int clipIndex, int delta, bool slip = false);
     bool trimTransitionOutValid(int trackIndex, int clipIndex, int delta);
-    void trimTransitionOut(int trackIndex, int clipIndex, int delta);
+    void trimTransitionOut(int trackIndex, int clipIndex, int delta, bool slip = false);
     bool addTransitionByTrimInValid(int trackIndex, int clipIndex, int delta);
     int addTransitionByTrimIn(int trackIndex, int clipIndex, int delta);
     bool addTransitionByTrimOutValid(int trackIndex, int clipIndex, int delta);
@@ -164,37 +187,40 @@ public slots:
     bool removeTransitionByTrimInValid(int trackIndex, int clipIndex, int delta);
     bool removeTransitionByTrimOutValid(int trackIndex, int clipIndex, int delta);
     void filterAddedOrRemoved(Mlt::Producer *producer);
-    void onFilterChanged(Mlt::Service* service);
+    void onFilterChanged(Mlt::Service *service);
     void reload(bool asynchronous = false);
-    void replace(int trackIndex, int clipIndex, Mlt::Producer& clip, bool copyFilters = true);
+    void replace(int trackIndex, int clipIndex, Mlt::Producer &clip, bool copyFilters = true);
 
 private:
-    Mlt::Tractor* m_tractor;
+    Mlt::Tractor *m_tractor;
     TrackList m_trackList;
     bool m_isMakingTransition;
 
-    void moveClipToEnd(Mlt::Playlist& playlist, int trackIndex, int clipIndex, int position, bool ripple, bool rippleAllTracks);
-    void moveClipInBlank(Mlt::Playlist& playlist, int trackIndex, int clipIndex, int position, bool ripple, bool rippleAllTracks, int duration = 0);
-    void consolidateBlanks(Mlt::Playlist& playlist, int trackIndex);
+    void moveClipToEnd(Mlt::Playlist &playlist, int trackIndex, int clipIndex, int position,
+                       bool ripple, bool rippleAllTracks);
+    void moveClipInBlank(Mlt::Playlist &playlist, int trackIndex, int clipIndex, int position,
+                         bool ripple, bool rippleAllTracks, int duration = 0);
+    void consolidateBlanks(Mlt::Playlist &playlist, int trackIndex);
     void consolidateBlanksAllTracks();
     void getAudioLevels();
     void addBlackTrackIfNeeded();
     void convertOldDoc();
-    Mlt::Transition* getTransition(const QString& name, int trackIndex) const;
-    Mlt::Filter* getFilter(const QString& name, int trackIndex) const;
-    Mlt::Filter* getFilter(const QString& name, Mlt::Service* service) const;
-    void removeBlankPlaceholder(Mlt::Playlist& playlist, int trackIndex);
+    Mlt::Transition *getTransition(const QString &name, int trackIndex) const;
+    Mlt::Filter *getFilter(const QString &name, int trackIndex) const;
+    Mlt::Filter *getFilter(const QString &name, Mlt::Service *service) const;
+    void removeBlankPlaceholder(Mlt::Playlist &playlist, int trackIndex);
     void retainPlaylist();
     void loadPlaylist();
     void removeRegion(int trackIndex, int position, int length);
     void clearMixReferences(int trackIndex, int clipIndex);
-    bool isFiltered(Mlt::Producer* producer = 0) const;
+    bool isFiltered(Mlt::Producer *producer = 0) const;
     int getDuration();
-    void adjustServiceFilterDurations(Mlt::Service& service, int duration);
-    bool warnIfInvalid(Mlt::Service& service);
-    Mlt::Transition* getVideoBlendTransition(int trackIndex) const;
+    void adjustServiceFilterDurations(Mlt::Service &service, int duration);
+    bool warnIfInvalid(Mlt::Service &service);
+    Mlt::Transition *getVideoBlendTransition(int trackIndex) const;
     void refreshVideoBlendTransitions();
     int bottomVideoTrackMltIndex() const;
+    bool hasEmptyTrack(TrackType trackType) const;
 
     friend class UndoHelper;
 

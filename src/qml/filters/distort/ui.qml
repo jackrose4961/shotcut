@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Meltytech, LLC
+ * Copyright (c) 2019-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,14 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Shotcut.KeyframableFilter {
-    
     property string amplitude: '0'
     property string frequency: '1'
     property string useVelocity: '2'
@@ -30,46 +28,44 @@ Shotcut.KeyframableFilter {
     property double frequencyDefault: 0.005
     property double velocityDefault: 0.5
 
+    function setControls() {
+        var position = getPosition();
+        blockUpdate = true;
+        amplitudeSlider.value = filter.getDouble(amplitude, position) * amplitudeSlider.maximumValue;
+        amplitudeKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(amplitude) > 0;
+        frequencySlider.value = filter.getDouble(frequency, position) * frequencySlider.maximumValue;
+        frequencyKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(frequency) > 0;
+        velocitySlider.value = filter.getDouble(velocity, position) * velocitySlider.maximumValue;
+        velocityKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(velocity) > 0;
+        blockUpdate = false;
+        enableControls(isSimpleKeyframesActive());
+    }
+
+    function enableControls(enabled) {
+        amplitudeSlider.enabled = frequencySlider.enabled = velocitySlider.enabled = enabled;
+    }
+
+    function updateSimpleKeyframes() {
+        updateFilter(amplitude, amplitudeSlider.value / amplitudeSlider.maximumValue, amplitudeKeyframesButton, null);
+        updateFilter(frequency, frequencySlider.value / frequencySlider.maximumValue, frequencyKeyframesButton, null);
+        updateFilter(velocity, velocitySlider.value / velocitySlider.maximumValue, velocityKeyframesButton, null);
+    }
+
     keyframableParameters: [amplitude, frequency, velocity]
     startValues: [0, 0, 0]
     middleValues: [amplitudeDefault, frequencyDefault, velocityDefault]
     endValues: [0, 0, 0]
-
     width: 350
     height: 150
-    
     Component.onCompleted: {
         if (filter.isNew) {
-            filter.set(amplitude, amplitudeDefault)
-            filter.set(frequency, frequencyDefault)
-            filter.set(useVelocity, 1)
-            filter.set(velocity, velocityDefault)
-            filter.savePreset(preset.parameters)
+            filter.set(amplitude, amplitudeDefault);
+            filter.set(frequency, frequencyDefault);
+            filter.set(useVelocity, 1);
+            filter.set(velocity, velocityDefault);
+            filter.savePreset(preset.parameters);
         }
-        setControls()
-    }
-
-    function setControls() {
-        var position = getPosition()
-        blockUpdate = true
-        amplitudeSlider.value = filter.getDouble(amplitude, position) * amplitudeSlider.maximumValue
-        amplitudeKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(amplitude) > 0
-        frequencySlider.value = filter.getDouble(frequency, position) * frequencySlider.maximumValue
-        frequencyKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(frequency) > 0
-        velocitySlider.value = filter.getDouble(velocity, position) * velocitySlider.maximumValue
-        velocityKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(velocity) > 0
-        blockUpdate = false
-        enableControls(isSimpleKeyframesActive())
-    }
-
-    function enableControls(enabled) {
-        amplitudeSlider.enabled = frequencySlider.enabled = velocitySlider.enabled = enabled
-    }
-
-    function updateSimpleKeyframes() {
-        updateFilter(amplitude, amplitudeSlider.value / amplitudeSlider.maximumValue, amplitudeKeyframesButton, null)
-        updateFilter(frequency, frequencySlider.value / frequencySlider.maximumValue, frequencyKeyframesButton, null)
-        updateFilter(velocity, velocitySlider.value / velocitySlider.maximumValue, velocityKeyframesButton, null)
+        setControls();
     }
 
     GridLayout {
@@ -81,16 +77,18 @@ Shotcut.KeyframableFilter {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: [amplitude, frequency, useVelocity, velocity]
             Layout.columnSpan: 3
             onBeforePresetLoaded: {
-                resetSimpleKeyframes()
+                resetSimpleKeyframes();
             }
             onPresetSelected: {
-                setControls()
-                initializeSimpleKeyframes()
+                setControls();
+                initializeSimpleKeyframes();
             }
         }
 
@@ -98,8 +96,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Amplitude')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: amplitudeSlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -107,14 +107,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(amplitude, value / maximumValue, amplitudeKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: amplitudeSlider.value = amplitudeDefault * amplitudeSlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: amplitudeKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, amplitude, amplitudeSlider.value / amplitudeSlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, amplitude, amplitudeSlider.value / amplitudeSlider.maximumValue);
             }
         }
 
@@ -122,8 +125,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Frequency')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: frequencySlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -131,14 +136,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(frequency, value / maximumValue, frequencyKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: frequencySlider.value = frequencyDefault * frequencySlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: frequencyKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, frequency, frequencySlider.value / frequencySlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, frequency, frequencySlider.value / frequencySlider.maximumValue);
             }
         }
 
@@ -146,8 +154,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Velocity')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: velocitySlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -155,33 +165,58 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(velocity, value / maximumValue, velocityKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: velocitySlider.value = velocityDefault * velocitySlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: velocityKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, velocity, velocitySlider.value / velocitySlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, velocity, velocitySlider.value / velocitySlider.maximumValue);
             }
         }
 
         Item {
-            Layout.fillHeight: true;
+            Layout.fillHeight: true
         }
     }
 
     Connections {
+        function onChanged() {
+            setControls();
+        }
+
+        function onInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onPropertyChanged(name) {
+            setControls();
+        }
+
         target: filter
-        onInChanged: updateSimpleKeyframes()
-        onOutChanged: updateSimpleKeyframes()
-        onAnimateInChanged: updateSimpleKeyframes()
-        onAnimateOutChanged: updateSimpleKeyframes()
-        onPropertyChanged: setControls()
     }
 
     Connections {
+        function onPositionChanged() {
+            setControls();
+        }
+
         target: producer
-        onPositionChanged: setControls()
     }
 }

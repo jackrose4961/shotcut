@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,11 +22,13 @@
 #include "models/playlistmodel.h"
 #include "database.h"
 #include "util.h"
+#include "settings.h"
 
 #include <Logger.h>
 
 ThumbnailProvider::ThumbnailProvider()
-    : QQuickImageProvider(QQmlImageProviderBase::Image, QQmlImageProviderBase::ForceAsynchronousImageLoading)
+    : QQuickImageProvider(QQmlImageProviderBase::Image,
+                          QQmlImageProviderBase::ForceAsynchronousImageLoading)
     , m_profile("atsc_720p_60")
 {
 }
@@ -64,7 +66,12 @@ QImage ThumbnailProvider::requestImage(const QString &id, QSize *size, const QSi
                 service = "avformat";
             else if (service.startsWith("xml"))
                 service = "xml-nogl";
-            Mlt::Producer producer(m_profile, service.toUtf8().constData(), resource.toUtf8().constData());
+            Mlt::Producer producer;
+            if (service == "count") {
+                producer = Mlt::Producer(m_profile, service.toUtf8().constData(), "loader-nogl");
+            } else if (!Settings.playerGPU() || (service != "xml-nogl" && service != "consumer")) {
+                producer = Mlt::Producer(m_profile, service.toUtf8().constData(), resource.toUtf8().constData());
+            }
             if (producer.is_valid()) {
                 result = makeThumbnail(producer, frameNumber, requestedSize);
                 DB.putThumbnail(key, result);
@@ -80,8 +87,8 @@ QImage ThumbnailProvider::requestImage(const QString &id, QSize *size, const QSi
     return result;
 }
 
-QString ThumbnailProvider::cacheKey(Mlt::Properties& properties, const QString& service,
-                                    const QString& resource, const QString& hash, int frameNumber)
+QString ThumbnailProvider::cacheKey(Mlt::Properties &properties, const QString &service,
+                                    const QString &resource, const QString &hash, int frameNumber)
 {
     QString time = properties.frames_to_time(frameNumber, mlt_time_clock);
     // Reduce the precision to centiseconds to increase chance for cache hit
@@ -89,20 +96,21 @@ QString ThumbnailProvider::cacheKey(Mlt::Properties& properties, const QString& 
     time = time.left(time.size() - 1);
     QString key;
     if (hash.isEmpty()) {
-        key = QString("%1 %2 %3")
-                .arg(service)
-                .arg(resource)
-                .arg(time);
+        key = QStringLiteral("%1 %2 %3")
+              .arg(service)
+              .arg(resource)
+              .arg(time);
         QCryptographicHash hash(QCryptographicHash::Sha1);
         hash.addData(key.toUtf8());
         key = hash.result().toHex();
     } else {
-        key = QString("%1 %2").arg(hash).arg(time);
+        key = QStringLiteral("%1 %2").arg(hash).arg(time);
     }
     return key;
 }
 
-QImage ThumbnailProvider::makeThumbnail(Mlt::Producer &producer, int frameNumber, const QSize& requestedSize)
+QImage ThumbnailProvider::makeThumbnail(Mlt::Producer &producer, int frameNumber,
+                                        const QSize &requestedSize)
 {
     Mlt::Filter scaler(m_profile, "swscale");
     Mlt::Filter padder(m_profile, "resize");

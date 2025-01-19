@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Meltytech, LLC
- * Author: Brian Matherly <code@brianmatherly.com>
+ * Copyright (c) 2015-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +18,8 @@
 #include "widgets/scopes/audioloudnessscopewidget.h"
 #include "widgets/scopes/audiopeakmeterscopewidget.h"
 #include "widgets/scopes/audiospectrumscopewidget.h"
+#include "widgets/scopes/audiosurroundscopewidget.h"
+#include "widgets/scopes/audiovectorscopewidget.h"
 #include "widgets/scopes/audiowaveformscopewidget.h"
 #include "widgets/scopes/videohistogramscopewidget.h"
 #include "widgets/scopes/videorgbparadescopewidget.h"
@@ -27,35 +28,35 @@
 #include "widgets/scopes/videowaveformscopewidget.h"
 #include "widgets/scopes/videozoomscopewidget.h"
 #include "docks/scopedock.h"
-#include "settings.h"
 #include <Logger.h>
 #include <QMainWindow>
 #include <QMenu>
 
-ScopeController::ScopeController(QMainWindow* mainWindow, QMenu* menu)
-  : QObject(mainWindow)
+ScopeController::ScopeController(QMainWindow *mainWindow, QMenu *menu)
+    : QObject(mainWindow)
 {
     LOG_DEBUG() << "begin";
-    QMenu* scopeMenu = menu->addMenu(tr("Scopes"));
+    QMenu *scopeMenu = menu->addMenu(tr("Scopes"));
     createScopeDock<AudioLoudnessScopeWidget>(mainWindow, scopeMenu);
     createScopeDock<AudioPeakMeterScopeWidget>(mainWindow, scopeMenu);
     createScopeDock<AudioSpectrumScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<AudioSurroundScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<AudioVectorScopeWidget>(mainWindow, scopeMenu);
     createScopeDock<AudioWaveformScopeWidget>(mainWindow, scopeMenu);
-    if (!Settings.playerGPU()) {
-        createScopeDock<VideoHistogramScopeWidget>(mainWindow, scopeMenu);
-        createScopeDock<VideoRgbParadeScopeWidget>(mainWindow, scopeMenu);
-        createScopeDock<VideoRgbWaveformScopeWidget>(mainWindow, scopeMenu);
-        createScopeDock<VideoVectorScopeWidget>(mainWindow, scopeMenu);
-        createScopeDock<VideoWaveformScopeWidget>(mainWindow, scopeMenu);
-        createScopeDock<VideoZoomScopeWidget>(mainWindow, scopeMenu);
-    }
+    createScopeDock<VideoHistogramScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<VideoRgbParadeScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<VideoRgbWaveformScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<VideoVectorScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<VideoWaveformScopeWidget>(mainWindow, scopeMenu);
+    createScopeDock<VideoZoomScopeWidget>(mainWindow, scopeMenu);
     LOG_DEBUG() << "end";
 }
 
-template<typename ScopeTYPE> void ScopeController::createScopeDock(QMainWindow* mainWindow, QMenu* menu)
+template<typename ScopeTYPE> void ScopeController::createScopeDock(QMainWindow *mainWindow,
+                                                                   QMenu *menu)
 {
-    ScopeWidget* scopeWidget = new ScopeTYPE();
-    ScopeDock* scopeDock = new ScopeDock(this, scopeWidget);
+    ScopeWidget *scopeWidget = new ScopeTYPE();
+    ScopeDock *scopeDock = new ScopeDock(this, scopeWidget);
     scopeDock->hide();
     menu->addAction(scopeDock->toggleViewAction());
     mainWindow->addDockWidget(Qt::RightDockWidgetArea, scopeDock);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,10 +44,12 @@
 #define kShotcutCaptionProperty "shotcut:caption"
 #define kShotcutDetailProperty "shotcut:detail"
 #define kShotcutHashProperty "shotcut:hash"
+#define kShotcutHiddenProperty "shotcut:hidden"
 #define kShotcutSkipConvertProperty "shotcut:skipConvert"
 #define kShotcutAnimInProperty "shotcut:animIn"
 #define kShotcutAnimOutProperty "shotcut:animOut"
 #define kShotcutMarkersProperty "shotcut:markers"
+#define kShotcutGroupProperty "shotcut:group"
 // Shotcut's VUI (video user interface) components set this so that glwidget can
 // hide the VUI when the play head is not over the clip with the current filter.
 #define kShotcutVuiMetaProperty "meta.shotcut.vui"
@@ -56,10 +58,16 @@
 #define kOriginalInProperty "shotcut:originalIn"
 #define kOriginalOutProperty "shotcut:originalOut"
 #define kDisableProxyProperty "shotcut:disableProxy"
+#define kBackupProperty "shotcut:backup"
+// "shotcut:proxy" is internal only because older versions do not know to hide it.
+// "shotcut:metaProxy" indicates whether the "meta." properties reflect source or proxy.
+#define kMetaProxyProperty "shotcut:proxy.meta"
+#define kShotcutBinsProperty "shotcut:bins"
 
 /* Project specific properties */
 #define kShotcutProjectAudioChannels "shotcut:projectAudioChannels"
 #define kShotcutProjectFolder "shotcut:projectFolder"
+#define kShotcutProjectNote "shotcut:projectNote"
 
 /* Ideally all shotcut properties should begin with "shotcut:", but these
  * do not and kept for legacy reasons? */
@@ -84,17 +92,14 @@
 #define kFilterOutProperty "_shotcut:filter_out"
 #define kThumbnailInProperty "_shotcut:thumbnail-in"
 #define kThumbnailOutProperty "_shotcut:thumbnail-out"
-#define kUndoIdProperty "_shotcut:undo_id"
 #define kUuidProperty "_shotcut:uuid"
 #define kMultitrackItemProperty "_shotcut:multitrack-item"
 #define kExportFromProperty "_shotcut:exportFromDefault"
-#define kIsProxyProperty "shotcut:proxy"
 #define kTrackIndexProperty "_shotcut:trackIndex"
-#define kClipIndexProperty "_shotcut:clipIndex"
-#define kShotcutInProperty "_shotcut:in"
-#define kShotcutOutProperty "_shotcut:out"
-#define kNewTrackIndexProperty "_shotcut:newTrackIndex"
+#define kFilterIndexProperty "_shotcut:filterIndex"
+#define kNewFilterProperty "_shotcut:newFilter"
 #define kShotcutFiltersClipboard "shotcut:filtersClipboard"
+#define kIsProxyProperty "shotcut:proxy"
 
 #define kDefaultMltProfile "atsc_1080p_25"
 

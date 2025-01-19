@@ -1,13 +1,15 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     isAudio: true
     name: qsTr("Balance")
+    keywords: qsTr('pan channel mixer', 'search keywords for the Balance audio filter') + ' balance'
     mlt_service: 'panner'
     objectName: 'audioBalance'
     qml: 'ui.qml'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -16,7 +18,6 @@ Metadata {
             Parameter {
                 name: qsTr('Position')
                 property: 'split'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1

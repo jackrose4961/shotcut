@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2022 Meltytech, LLC
  * Author: Dan Dennedy <dan@dennedy.org>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,18 +15,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
     width: 350
     height: 100
     Component.onCompleted: {
         if (filter.isNew)
-            filter.savePreset(preset.parameters)
+            filter.savePreset(preset.parameters);
     }
 
     GridLayout {
@@ -38,13 +37,15 @@ Item {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             Layout.columnSpan: 2
             parameters: ['u', 'v']
             onPresetSelected: {
-                sliderBlue.value = filter.getDouble('u')
-                sliderRed.value = filter.getDouble('v')
+                sliderBlue.value = filter.getDouble('u');
+                sliderRed.value = filter.getDouble('v');
             }
         }
 
@@ -52,13 +53,16 @@ Item {
             text: qsTr('Yellow-Blue')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: sliderBlue
+
             minimumValue: 0
             maximumValue: 255
             value: filter.getDouble('u')
-            onValueChanged:filter.set('u', value)
+            onValueChanged: filter.set('u', value)
         }
+
         Shotcut.UndoButton {
             onClicked: sliderBlue.value = 75
         }
@@ -67,13 +71,16 @@ Item {
             text: qsTr('Cyan-Red')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: sliderRed
+
             minimumValue: 0
             maximumValue: 255
             value: filter.getDouble('v')
             onValueChanged: filter.set('v', value)
         }
+
         Shotcut.UndoButton {
             onClicked: sliderRed.value = 150
         }

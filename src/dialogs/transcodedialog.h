@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 Meltytech, LLC
+ * Copyright (c) 2017-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,27 +23,34 @@
 namespace Ui {
 class TranscodeDialog;
 }
-class QCheckBox;
 
 class TranscodeDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit TranscodeDialog(const QString& message, bool isProgressive, QWidget *parent = nullptr);
+    explicit TranscodeDialog(const QString &message, bool isProgressive, QWidget *parent = nullptr);
     ~TranscodeDialog();
-    int format() const { return m_format; }
+    int format() const
+    {
+        return m_format;
+    }
     void showCheckBox();
-    bool isCheckBoxChecked() const { return m_isChecked; }
+    bool isCheckBoxChecked() const
+    {
+        return m_isChecked;
+    }
     bool deinterlace() const;
     bool fpsOverride() const;
     double fps() const;
     QString frc() const;
     bool get709Convert();
     void set709Convert(bool enable);
+    QString sampleRate() const;
     void showSubClipCheckBox();
     bool isSubClip() const;
     void setSubClipChecked(bool checked);
+    void setFrameRate(double fps);
 
 private slots:
     void on_horizontalSlider_valueChanged(int position);

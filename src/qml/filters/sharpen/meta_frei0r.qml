@@ -1,12 +1,15 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Sharpen")
+    keywords: qsTr('sharpness focus clear crisp', 'search keywords for the Sharpen video filter') + ' sharpen'
     mlt_service: "frei0r.sharpness"
     qml: "ui_frei0r.qml"
+    icon: 'icon.webp'
     gpuAlt: "movit.sharpen"
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -15,7 +18,6 @@ Metadata {
             Parameter {
                 name: qsTr('Amount')
                 property: '0'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -23,7 +25,6 @@ Metadata {
             Parameter {
                 name: qsTr('Size')
                 property: '1'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1

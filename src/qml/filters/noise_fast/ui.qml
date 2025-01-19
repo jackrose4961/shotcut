@@ -14,30 +14,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Item {
     property string noise: 'av.all_strength'
     property double noiseDefault: 20
 
-    width: 350
-    height: 100
-
-    Component.onCompleted: {
-        if (filter.isNew) {
-            filter.set('av.all_flags', 'a+t')
-            filter.set(noise, noiseDefault)
-            filter.savePreset(preset.parameters)
-        }
-        setControls()
+    function setControls() {
+        noiseSlider.value = filter.getDouble(noise);
     }
 
-    function setControls() {
-        noiseSlider.value = filter.getDouble(noise)
+    width: 350
+    height: 100
+    Component.onCompleted: {
+        if (filter.isNew) {
+            filter.set('av.all_flags', 'a+t');
+            filter.set(noise, noiseDefault);
+            filter.savePreset(preset.parameters);
+        }
+        setControls();
     }
 
     GridLayout {
@@ -49,8 +47,10 @@ Item {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: [noise]
             Layout.columnSpan: 3
             onPresetSelected: setControls()
@@ -60,15 +60,18 @@ Item {
             text: qsTr('Amount')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: noiseSlider
-            minimumValue: 0.0
-            maximumValue: 100.0
+
+            minimumValue: 0
+            maximumValue: 100
             stepSize: 0.1
             decimals: 1
             suffix: ' %'
             onValueChanged: filter.set(noise, noiseSlider.value)
         }
+
         Shotcut.UndoButton {
             onClicked: noiseSlider.value = noiseDefault
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Meltytech, LLC
+ * Copyright (c) 2019-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,16 +14,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Noise: Keyframes")
+    keywords: qsTr('dirt grunge', 'search keywords for the Noise: Keyframes video filter') + ' noise: keyframes'
     objectName: 'noise_keyframes'
     mlt_service: "frei0r.rgbnoise"
     qml: "ui.qml"
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -32,7 +34,6 @@ Metadata {
             Parameter {
                 name: qsTr('Amount')
                 property: '0'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1

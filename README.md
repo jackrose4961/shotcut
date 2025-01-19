@@ -28,7 +28,8 @@ Binaries are regularly built and are available at https://www.shotcut.org/downlo
 Shotcut's direct (linked or hard runtime) dependencies are:
 
 - [MLT](https://www.mltframework.org/): multimedia authoring framework
-- [Qt 5](https://www.qt.io/): application and UI framework
+- [Qt 6 (6.4 mininum)](https://www.qt.io/): application and UI framework
+- [FFTW](https://fftw.org/)
 - [FFmpeg](https://www.ffmpeg.org/): multimedia format and codec libraries
 - [Frei0r](https://www.dyne.org/software/frei0r/): video plugins
 - [SDL](http://www.libsdl.org/): cross-platform audio playback
@@ -48,35 +49,33 @@ GPLv3. See [COPYING](COPYING).
 
 The fastest way to build and try Shotcut development version is through [Qt Creator](https://www.qt.io/download#qt-creator).
 
-To make this easier, we provide [SDKs](https://shotcut.org/notes/) on the web site with each release that includes
-Shotcut and all of its dependencies. These SDK pages also include setup instructions and tips on how to compile
-MLT and other dependencies after updating.
-
 ### From command line
 
-First, check dependencies are satisfied and various paths are correctly set to find different libraries and include files (Qt 5, MLT, frei0r and so forth).
+First, check dependencies are satisfied and various paths are correctly set to find different libraries and include files (Qt, MLT, frei0r and so forth).
 
-Build `Makefile`:
+#### Configure
 
-```
-qmake PREFIX=/usr/local/
-```
-Compile `shotcut`:
+In a new directory in which to make the build (separate from the source):
 
 ```
-make -j8
-make install
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local/ /path/to/shotcut
 ```
 
-If you do not `make install`, Shotcut will fail when you run it because it cannot locate its QML
-files. If you want to run `shotcut` from a build folder without installing, you can
-make a symbolic link to the `qml` folder. It depends on where your build folder is, but assuming it
-is a sibling of the source tree folder:
+We recommend using the Ninja generator by adding `-GNinja` to the above command line.
+
+#### Build
+
 ```
-cd build
-mkdir -p share/shotcut 
-cd share/shotcut
-ln -s ../../../shotcut/src/qml
+cmake --build .
+```
+
+#### Install
+
+If you do not install, Shotcut may fail when you run it because it cannot locate its QML
+files that it reads at run-time.
+
+```
+cmake --install .
 ```
 
 ## Translation

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,8 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
+import QtQuick
 
 Rectangle {
     property alias text: label.text
@@ -24,10 +23,13 @@ Rectangle {
     radius: 5
     height: Math.ceil(text.length / 80) * label.height + 2 * label.y
 
-    SystemPalette { id: activePalette }
+    SystemPalette {
+        id: activePalette
+    }
 
     Text {
         id: label
+
         x: 10
         y: 10
         width: parent.width - 2 * x

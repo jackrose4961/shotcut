@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2021 Meltytech, LLC
+ * Copyright (c) 2012-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,10 @@
 #include <QWidget>
 #include <QRunnable>
 #include "abstractproducerwidget.h"
-#include "sharedframe.h"
 #include "dialogs/transcodedialog.h"
 
 namespace Ui {
-    class AvformatProducerWidget;
+class AvformatProducerWidget;
 }
 
 class AvformatProducerWidget : public QWidget, public AbstractProducerWidget
@@ -37,8 +36,8 @@ public:
     ~AvformatProducerWidget();
 
     // AbstractProducerWidget overrides
-    Mlt::Producer* newProducer(Mlt::Profile&);
-    void setProducer(Mlt::Producer*);
+    Mlt::Producer *newProducer(Mlt::Profile &);
+    void setProducer(Mlt::Producer *);
 
 public slots:
     void updateDuration();
@@ -46,19 +45,17 @@ public slots:
     void offerConvert(QString message, bool set709Convert = false, bool setSubClip = false);
 
 signals:
-    void producerChanged(Mlt::Producer*);
+    void producerChanged(Mlt::Producer *);
     void producerReopened(bool play);
     void modified();
+    void showInFiles(QString);
 
 protected:
     void keyPressEvent(QKeyEvent *event);
 
 private slots:
-    void onFrameDisplayed(const SharedFrame&);
 
-    void onProducerChanged(Mlt::Producer*);
-
-    void onFrameDecoded();
+    void onProducerChanged(Mlt::Producer *);
 
     void on_videoTrackComboBox_activated(int index);
 
@@ -98,6 +95,8 @@ private slots:
 
     void on_actionExtractSubclip_triggered();
 
+    void on_actionExtractSubtitles_triggered();
+
     void on_actionSetFileDate_triggered();
 
     void on_rangeComboBox_activated(int index);
@@ -124,33 +123,40 @@ private slots:
 
     void on_rotationComboBox_activated(int index);
 
+    void on_actionExportGPX_triggered();
+
+    void on_speedComboBox_textActivated(const QString &arg1);
+
 private:
     Ui::AvformatProducerWidget *ui;
     int m_defaultDuration;
     bool m_recalcDuration;
     bool m_askToConvert;
 
-    void reopen(Mlt::Producer* p);
-    void recreateProducer();
-    void convert(TranscodeDialog& dialog);
+    void reopen(Mlt::Producer *p);
+    void recreateProducer(bool getFrame = false);
     bool revertToOriginalResource();
     void setSyncVisibility();
+    double fps();
+
+private slots:
+    void reloadProducerValues();
+    void on_actionBitrateViewer_triggered();
+    void on_actionShowInFiles_triggered();
 };
 
-
-class DecodeTask : public QObject, public QRunnable
+class ProbeTask : public QObject, public QRunnable
 {
     Q_OBJECT
 
 public:
-    explicit DecodeTask(AvformatProducerWidget* widget);
+    explicit ProbeTask(Mlt::Producer *producer);
     void run();
 
 signals:
-    void frameDecoded();
-
+    void probeFinished();
 private:
-    QScopedPointer<Mlt::Frame> m_frame;
+    Mlt::Producer m_producer;
 };
 
 #endif // AVFORMATPRODUCERWIDGET_H

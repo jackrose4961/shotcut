@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 Meltytech, LLC
+ * Copyright (c) 2013-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +16,27 @@
  */
 
 #include "qmltypes/qmlapplication.h"
+#include "qmltypes/colordialog.h"
 #include "qmltypes/colorpickeritem.h"
 #include "qmltypes/colorwheelitem.h"
+#include "qmltypes/filedialog.h"
+#include "qmltypes/fontdialog.h"
+#include "qmltypes/messagedialog.h"
+#include "qmltypes/qmleditmenu.h"
 #include "qmltypes/qmlprofile.h"
 #include "qmltypes/qmlutilities.h"
-#include "qmltypes/qmlview.h"
 #include "qmltypes/qmlfile.h"
 #include "qmltypes/qmlfilter.h"
+#include "qmltypes/qmlmarkermenu.h"
 #include "qmltypes/qmlmetadata.h"
 #include "qmltypes/qmlrichtext.h"
+#include "qmltypes/qmlrichtextmenu.h"
 #include "qmltypes/timelineitems.h"
 #include "settings.h"
 #include "models/metadatamodel.h"
 #include "models/keyframesmodel.h"
+#include "models/subtitlesmodel.h"
+#include "models/subtitlesselectionmodel.h"
 #include <QCoreApplication>
 #include <QSysInfo>
 #include <QCursor>
@@ -46,20 +54,31 @@ void QmlUtilities::registerCommonTypes()
     qmlRegisterType<QmlFile>("org.shotcut.qml", 1, 0, "File");
     qmlRegisterType<QmlFilter>("org.shotcut.qml", 1, 0, "Filter");
     qmlRegisterType<QmlMetadata>("org.shotcut.qml", 1, 0, "Metadata");
-    qmlRegisterType<QmlKeyframesMetadata>();
-    qmlRegisterType<QmlKeyframesParameter>("org.shotcut.qml", 1,0, "Parameter");
+    qmlRegisterAnonymousType<QmlKeyframesMetadata>("org.shotcut.qml", 1);
+    qmlRegisterType<QmlKeyframesParameter>("org.shotcut.qml", 1, 0, "Parameter");
     qmlRegisterType<QmlRichText>("org.shotcut.qml", 1, 0, "RichText");
-    qmlRegisterType<KeyframesModel>("org.shotcut.qml", 1,0, "KeyframesModel");
+    qmlRegisterType<KeyframesModel>("org.shotcut.qml", 1, 0, "KeyframesModel");
+    qmlRegisterType<SubtitlesModel>("org.shotcut.qml", 1, 0, "SubtitlesModel");
+    qmlRegisterType<SubtitlesSelectionModel>("org.shotcut.qml", 1, 0, "SubtitlesSelectionModel");
     qmlRegisterType<QmlUtilities>("org.shotcut.qml", 1, 0, "Utilities");
     // MetadataModel is registered to access its MetadataFilter enum.
     qmlRegisterUncreatableType<MetadataModel>("org.shotcut.qml", 1, 0, "MetadataModel",
                                               "You cannot create a MetadataModel from QML.");
+    qmlRegisterUncreatableType<ShotcutSettings>("org.shotcut.qml", 1, 0, "Settings",
+                                                "You cannot create a Settings from QML.");
     qmlRegisterType<ColorPickerItem>("Shotcut.Controls", 1, 0, "ColorPickerItem");
     qmlRegisterType<ColorWheelItem>("Shotcut.Controls", 1, 0, "ColorWheelItem");
+    qmlRegisterType<QmlMarkerMenu>("Shotcut.Controls", 1, 0, "MarkerMenu");
+    qmlRegisterType<QmlEditMenu>("Shotcut.Controls", 1, 0, "EditContextMenu");
+    qmlRegisterType<QmlRichTextMenu>("Shotcut.Controls", 1, 0, "RichTextMenu");
+    qmlRegisterType<ColorDialog>("Shotcut.Controls", 1, 0, "ColorDialog");
+    qmlRegisterType<FontDialog>("Shotcut.Controls", 1, 0, "FontDialog");
+    qmlRegisterType<MessageDialog>("Shotcut.Controls", 1, 0, "MessageDialog");
+    qmlRegisterType<FileDialog>("Shotcut.Controls", 1, 0, "FileDialog");
     registerTimelineItems();
 }
 
-void QmlUtilities::setCommonProperties(QQmlContext* context)
+void QmlUtilities::setCommonProperties(QQmlContext *context)
 {
     context->setContextProperty("settings", &ShotcutSettings::singleton());
     context->setContextProperty("application", &QmlApplication::singleton());
@@ -74,9 +93,9 @@ QDir QmlUtilities::qmlDir()
     return dir;
 }
 
-QQmlEngine * QmlUtilities::sharedEngine()
+QQmlEngine *QmlUtilities::sharedEngine()
 {
-    static QQmlEngine * s_engine = 0;
+    static QQmlEngine *s_engine = 0;
     if (!s_engine)
         s_engine = new QQmlEngine;
     return s_engine;

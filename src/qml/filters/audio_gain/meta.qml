@@ -1,13 +1,16 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     isAudio: true
     name: qsTr("Gain / Volume")
     mlt_service: "volume"
+    keywords: qsTr('loudness', 'search keywords for the Gain/Volume audio filter') + ' gain volume'
     qml: "ui.qml"
+    icon: 'qrc:///icons/oxygen/32x32/status/audio-volume-high.png'
     isFavorite: true
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -16,7 +19,6 @@ Metadata {
             Parameter {
                 name: qsTr('Level')
                 property: 'level'
-                isSimple: true
                 isCurve: true
                 minimum: -70
                 maximum: 24
