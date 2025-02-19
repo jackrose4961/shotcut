@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2022 Meltytech, LLC
  * Written by Austin Brooks <ab.shotcut@outlook.com>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,16 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-
-import QtQuick 2.12
-import org.shotcut.qml 1.0
-
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr('Deband')
+    keywords: qsTr('mean average median contour', 'search keywords for the Deband video filter') + ' deband'
     objectName: 'deband'
     mlt_service: 'avfilter.deband'
     qml: 'ui.qml'
+    icon: 'icon.webp'
 }

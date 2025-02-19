@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 Meltytech, LLC
+ * Copyright (c) 2014-2025 Meltytech, LLC
  * Inspiration: KDENLIVE colorpickerwidget.cpp by Till Theato (root@ttill.de)
  * Inspiration: QColorDialog.cpp
  *
@@ -18,41 +18,57 @@
  */
 
 #include "colorpickeritem.h"
-
-#include "mainwindow.h"
+#include <Logger.h>
 
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QGuiApplication>
 #include <QImage>
 #include <QScreen>
 #include <QTimer>
 
-ColorPickerItem::ColorPickerItem(QObject* parent)
+#ifdef Q_OS_LINUX
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusMetaType>
+#include <QDBusObjectPath>
+#include <QDBusPendingCall>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
+#endif
+
+ColorPickerItem::ColorPickerItem(QObject *parent)
     : QObject(parent)
 {
-    connect(this, SIGNAL(pickColor()), &m_selector, SLOT(startSelection()));
-    connect(&m_selector, SIGNAL(screenSelected(const QRect&)), this, SLOT(screenSelected(const QRect&)));
-    connect(&m_selector, SIGNAL(cancelled()), SIGNAL(cancelled()));
+#ifdef Q_OS_LINUX
+    qDBusRegisterMetaType<QColor>();
+#endif
+
+    connect(this, &ColorPickerItem::pickColor, &m_selector, &ScreenSelector::startSelection);
+    connect(&m_selector, &ScreenSelector::screenSelected, this, &ColorPickerItem::screenSelected);
+    connect(&m_selector, &ScreenSelector::cancelled, this, &ColorPickerItem::cancelled);
 }
 
-void ColorPickerItem::screenSelected(const QRect& rect)
+void ColorPickerItem::screenSelected(const QRect &rect)
 {
     m_selectedRect = rect;
-    // Give the frame buffer time to clear the selector window before
-    // grabbing the color.
-    QTimer::singleShot(200, this, SLOT(grabColor()));
+#ifdef Q_OS_LINUX
+    if (m_selector.useDBus())
+        QTimer::singleShot(0, this, &ColorPickerItem::grabColorDBus);
+    else
+#endif
+        // Give the frame buffer time to clear the selector window before
+        // grabbing the color.
+        QTimer::singleShot(200, this, &ColorPickerItem::grabColor);
 }
 
 void ColorPickerItem::grabColor()
 {
-    QDesktopWidget* desktop = QApplication::desktop();
-
-    QScreen* screen = QGuiApplication::screenAt(m_selectedRect.topLeft());
-    QPixmap screenGrab = screen->grabWindow(desktop->winId(),
-        m_selectedRect.x(), m_selectedRect.y(), m_selectedRect.width(), m_selectedRect.height());
+    QScreen *screen = QGuiApplication::screenAt(m_selectedRect.topLeft());
+    QPixmap screenGrab = screen->grabWindow(0, m_selectedRect.x() - screen->geometry().x(),
+                                            m_selectedRect.y() - screen->geometry().y(),
+                                            m_selectedRect.width(), m_selectedRect.height());
     QImage image = screenGrab.toImage();
-    int numPixel = image.width() * image.height();
+    int numPixel = qMax(image.width() * image.height(), 1);
     int sumR = 0;
     int sumG = 0;
     int sumB = 0;
@@ -69,3 +85,61 @@ void ColorPickerItem::grabColor()
     QColor avgColor(sumR / numPixel, sumG / numPixel, sumB / numPixel);
     emit colorPicked(avgColor);
 }
+
+#ifdef Q_OS_LINUX
+
+QDBusArgument &operator<<(QDBusArgument &arg, const QColor &color)
+{
+    arg.beginStructure();
+    arg << color.redF() << color.greenF() << color.blueF();
+    arg.endStructure();
+    return arg;
+}
+
+const QDBusArgument &operator>>(const QDBusArgument &arg, QColor &color)
+{
+    double red, green, blue;
+    arg.beginStructure();
+    arg >> red >> green >> blue;
+    color.setRedF(red);
+    color.setGreenF(green);
+    color.setBlueF(blue);
+    arg.endStructure();
+
+    return arg;
+}
+
+void ColorPickerItem::grabColorDBus()
+{
+    QDBusMessage message = QDBusMessage::createMethodCall(
+                               QLatin1String("org.freedesktop.portal.Desktop"), QLatin1String("/org/freedesktop/portal/desktop"),
+                               QLatin1String("org.freedesktop.portal.Screenshot"), QLatin1String("PickColor"));
+    message << QLatin1String("x11:") << QVariantMap{};
+    QDBusPendingCall pendingCall = QDBusConnection::sessionBus().asyncCall(message);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(pendingCall);
+    connect(watcher, &QDBusPendingCallWatcher::finished, [ = ](QDBusPendingCallWatcher * watcher) {
+        QDBusPendingReply<QDBusObjectPath> reply = *watcher;
+        if (reply.isError()) {
+            LOG_WARNING() << "Unable to get DBus reply: " << reply.error().message();
+        } else {
+            QDBusConnection::sessionBus().connect(QString(), reply.value().path(),
+                                                  QLatin1String("org.freedesktop.portal.Request"), QLatin1String("Response"), this,
+                                                  SLOT(gotColorResponse(uint, QVariantMap)));
+        }
+    });
+}
+
+void ColorPickerItem::gotColorResponse(uint response, const QVariantMap &results)
+{
+    if (!response) {
+        if (results.contains(QLatin1String("color"))) {
+            const QColor color = qdbus_cast<QColor>(results.value(QLatin1String("color")));
+            LOG_DEBUG() << "picked" << color;
+            emit colorPicked(color);
+        }
+    } else {
+        LOG_WARNING() << "Failed to grab screen" << response << results;
+    }
+}
+
+#endif

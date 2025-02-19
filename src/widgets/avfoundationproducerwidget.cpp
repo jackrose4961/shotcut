@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015-2018 Meltytech, LLC
- * Author: Dan Dennedy <dan@dennedy.org>
+ * Copyright (c) 2015-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +19,12 @@
 #include "ui_avfoundationproducerwidget.h"
 #include "mltcontroller.h"
 #include "util.h"
+#include "settings.h"
+#include <QMediaDevices>
+#include <QCameraDevice>
 #include <QCamera>
 #include <QString>
-#include <QAudioDeviceInfo>
-#include <QDesktopWidget>
+#include <QAudioDevice>
 #include "shotcut_mlt_properties.h"
 #include <Logger.h>
 
@@ -37,18 +38,29 @@ AvfoundationProducerWidget::AvfoundationProducerWidget(QWidget *parent) :
     Util::setColorsToHighlight(ui->label);
 
 #ifdef Q_OS_MAC
-    foreach (const QByteArray &deviceName, QCamera::availableDevices())
-        ui->videoCombo->addItem(QCamera::deviceDescription(deviceName));
+    auto currentVideo = 1;
+    for (const auto &cameraInfo : QMediaDevices::videoInputs()) {
+        if (Settings.videoInput() == cameraInfo.description()) {
+            currentVideo = ui->videoCombo->count();
+        }
+        ui->videoCombo->addItem(cameraInfo.description(), cameraInfo.id());
+    }
 #if ENABLE_SCREEN_CAPTURE
-    for (int i = 0; i < QApplication::desktop()->screenCount(); i++)
-        ui->videoCombo->addItem(QString("Capture screen %1").arg(i));
+    for (int i = 0; i < QGuiApplication::screens().size(); i++)
+        ui->videoCombo->addItem(QStringLiteral("Capture screen %1").arg(i));
 #endif
-    foreach (const QAudioDeviceInfo &deviceInfo, QAudioDeviceInfo::availableDevices(QAudio::AudioInput))
-        ui->audioCombo->addItem(deviceInfo.deviceName());
+    auto currentAudio = 1;
+    for (const auto &deviceInfo : QMediaDevices::audioInputs()) {
+        if (Settings.audioInput() == deviceInfo.description()) {
+            currentAudio = ui->audioCombo->count();
+        }
+        ui->audioCombo->addItem(deviceInfo.description());
+    }
     if (ui->videoCombo->count() > 1)
-        ui->videoCombo->setCurrentIndex(1);
-    if (ui->audioCombo->count() > 1)
-        ui->audioCombo->setCurrentIndex(1);
+        ui->videoCombo->setCurrentIndex(currentVideo);
+    if (ui->audioCombo->count() > 1) {
+        ui->audioCombo->setCurrentIndex(currentAudio);
+    }
 #endif
 }
 
@@ -57,18 +69,29 @@ AvfoundationProducerWidget::~AvfoundationProducerWidget()
     delete ui;
 }
 
-Mlt::Producer *AvfoundationProducerWidget::newProducer(Mlt::Profile& profile)
+Mlt::Producer *AvfoundationProducerWidget::newProducer(Mlt::Profile &profile)
 {
-    QString resource = QString("avfoundation:%1:%2?pixel_format=yuyv422&framerate=30&video_size=1280x720")
-            .arg(ui->videoCombo->currentText().replace(tr("None"), "none"))
-            .arg(ui->audioCombo->currentText().replace(tr("None"), "none"));
+    QString resource;
+    qreal frameRate = 30.0;
+    QSize size {1280, 720};
+    Util::cameraFrameRateSize(ui->videoCombo->currentData().toByteArray(), frameRate, size);
+    if (ui->videoCombo->currentIndex()) {
+        resource = QStringLiteral("avfoundation:%1:%2?pixel_format=yuyv422&framerate=%3&video_size=%4x%5")
+                   .arg(ui->videoCombo->currentText().replace(tr("None"), "none"))
+                   .arg(ui->audioCombo->currentText().replace(tr("None"), "none"))
+                   .arg(frameRate).arg(size.width()).arg(size.height());
+    } else {
+        resource = QStringLiteral("avfoundation:none:%1").arg(ui->audioCombo->currentText().replace(
+                                                                  tr("None"),
+                                                                  "none"));
+    }
     LOG_DEBUG() << resource;
-    Mlt::Producer* p = new Mlt::Producer(profile, resource.toUtf8().constData());
+    Mlt::Producer *p = new Mlt::Producer(profile, resource.toUtf8().constData());
     if (!p || !p->is_valid()) {
         delete p;
         p = new Mlt::Producer(profile, "color:");
-        p->set("resource", QString("avfoundation:%1:%2")
-               .arg(ui->videoCombo->currentText())
+        p->set("resource", QStringLiteral("avfoundation:%1:%2")
+               .arg(ui->videoCombo->currentText().replace(tr("None"), "none"))
                .arg(ui->audioCombo->currentText())
                .toUtf8().constData());
         p->set("error", 1);
@@ -76,6 +99,12 @@ Mlt::Producer *AvfoundationProducerWidget::newProducer(Mlt::Profile& profile)
     p->set("force_seekable", 0);
     p->set(kBackgroundCaptureProperty, 1);
     p->set(kShotcutCaptionProperty, tr("Audio/Video Device").toUtf8().constData());
+    if (ui->audioCombo->currentIndex() > 0) {
+        Settings.setAudioInput(ui->audioCombo->currentText());
+    }
+    if (ui->videoCombo->currentIndex() > 0) {
+        Settings.setVideoInput(ui->videoCombo->currentText());
+    }
     return p;
 }
 
@@ -111,7 +140,7 @@ void AvfoundationProducerWidget::on_videoCombo_activated(int index)
         emit producerChanged(0);
         QCoreApplication::processEvents();
 
-        Mlt::Producer* p = newProducer(MLT.profile());
+        Mlt::Producer *p = newProducer(MLT.profile());
         AbstractProducerWidget::setProducer(p);
         MLT.setProducer(p);
         MLT.play();

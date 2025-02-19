@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Meltytech, LLC
+ * Copyright (c) 2019-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,11 +14,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Shotcut.KeyframableFilter {
     property string glitchFreq: '0'
@@ -30,50 +29,48 @@ Shotcut.KeyframableFilter {
     property double shiftIntDefault: 0.5
     property double colorIntDefault: 0.5
 
+    function setControls() {
+        var position = getPosition();
+        blockUpdate = true;
+        glitchFreqSlider.value = filter.getDouble(glitchFreq, position) * glitchFreqSlider.maximumValue;
+        glitchKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(glitchFreq) > 0;
+        blockHSlider.value = filter.getDouble(blockH, position) * blockHSlider.maximumValue;
+        blockKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(blockH) > 0;
+        shiftIntSlider.value = filter.getDouble(shiftInt, position) * shiftIntSlider.maximumValue;
+        shiftKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(shiftInt) > 0;
+        colorIntSlider.value = filter.getDouble(colorInt, position) * colorIntSlider.maximumValue;
+        colorKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(colorInt) > 0;
+        blockUpdate = false;
+        enableControls(isSimpleKeyframesActive());
+    }
+
+    function enableControls(enabled) {
+        glitchFreqSlider.enabled = blockHSlider.enabled = shiftIntSlider.enabled = colorIntSlider.enabled = enabled;
+    }
+
+    function updateSimpleKeyframes() {
+        setControls();
+        updateFilter(glitchFreq, glitchFreqSlider.value / glitchFreqSlider.maximumValue, glitchKeyframesButton, null);
+        updateFilter(blockH, blockHSlider.value / blockHSlider.maximumValue, blockKeyframesButton, null);
+        updateFilter(shiftInt, shiftIntSlider.value / shiftIntSlider.maximumValue, shiftKeyframesButton, null);
+        updateFilter(colorInt, colorIntSlider.value / colorIntSlider.maximumValue, colorKeyframesButton, null);
+    }
+
     keyframableParameters: [glitchFreq, blockH, shiftInt, colorInt]
     startValues: [0, 0.5, 0.5, 0.5]
     middleValues: [glitchFreqDefault, blockHDefault, shiftIntDefault, colorIntDefault]
     endValues: [0, 0.5, 0.5, 0.5]
-
     width: 350
     height: 150
-
     Component.onCompleted: {
         if (filter.isNew) {
-            filter.set(glitchFreq, glitchFreqDefault)
-            filter.set(blockH, blockHDefault)
-            filter.set(shiftInt, shiftIntDefault)
-            filter.set(colorInt, colorIntDefault)
-            filter.savePreset(preset.parameters)
+            filter.set(glitchFreq, glitchFreqDefault);
+            filter.set(blockH, blockHDefault);
+            filter.set(shiftInt, shiftIntDefault);
+            filter.set(colorInt, colorIntDefault);
+            filter.savePreset(preset.parameters);
         }
-        setControls()
-    }
-
-    function setControls() {
-        var position = getPosition()
-        blockUpdate = true
-        glitchFreqSlider.value = filter.getDouble(glitchFreq, position) * glitchFreqSlider.maximumValue
-        glitchKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(glitchFreq) > 0
-        blockHSlider.value = filter.getDouble(blockH, position) * blockHSlider.maximumValue
-        blockKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(blockH) > 0
-        shiftIntSlider.value = filter.getDouble(shiftInt, position) * shiftIntSlider.maximumValue
-        shiftKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(shiftInt) > 0
-        colorIntSlider.value = filter.getDouble(colorInt, position) * colorIntSlider.maximumValue
-        colorKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(colorInt) > 0
-        blockUpdate = false
-        enableControls(isSimpleKeyframesActive())
-    }
-
-    function enableControls(enabled) {
-        glitchFreqSlider.enabled = blockHSlider.enabled = shiftIntSlider.enabled = colorIntSlider.enabled = enabled
-        
-    }
-
-    function updateSimpleKeyframes() {
-        updateFilter(glitchFreq, glitchFreqSlider.value / glitchFreqSlider.maximumValue, glitchKeyframesButton, null)
-        updateFilter(blockH, blockHSlider.value / blockHSlider.maximumValue, blockKeyframesButton, null)
-        updateFilter(shiftInt, shiftIntSlider.value / shiftIntSlider.maximumValue, shiftKeyframesButton, null)
-        updateFilter(colorInt, colorIntSlider.value / colorIntSlider.maximumValue, colorKeyframesButton, null)
+        setControls();
     }
 
     GridLayout {
@@ -85,16 +82,18 @@ Shotcut.KeyframableFilter {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: [glitchFreq, blockH, shiftInt, colorInt]
             Layout.columnSpan: 3
             onBeforePresetLoaded: {
-                resetSimpleKeyframes
+                resetSimpleKeyframes;
             }
             onPresetSelected: {
-                setControls()
-                initializeSimpleKeyframes()
+                setControls();
+                initializeSimpleKeyframes();
             }
         }
 
@@ -102,8 +101,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Frequency')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: glitchFreqSlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -111,14 +112,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(glitchFreq, glitchFreqSlider.value / glitchFreqSlider.maximumValue, glitchKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: glitchFreqSlider.value = glitchFreqDefault * glitchFreqSlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: glitchKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, glitchFreq, glitchFreqSlider.value / glitchFreqSlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, glitchFreq, glitchFreqSlider.value / glitchFreqSlider.maximumValue);
             }
         }
 
@@ -126,8 +130,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Block height')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: blockHSlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -135,14 +141,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(blockH, blockHSlider.value / blockHSlider.maximumValue, blockKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: blockHSlider.value = blockHDefault * blockHSlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: blockKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, blockH, blockHSlider.value / blockHSlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, blockH, blockHSlider.value / blockHSlider.maximumValue);
             }
         }
 
@@ -150,8 +159,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Shift intensity')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: shiftIntSlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -159,14 +170,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(shiftInt, shiftIntSlider.value / shiftIntSlider.maximumValue, shiftKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: shiftIntSlider.value = shiftIntDefault * shiftIntSlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: shiftKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, shiftInt, shiftIntSlider.value / shiftIntSlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, shiftInt, shiftIntSlider.value / shiftIntSlider.maximumValue);
             }
         }
 
@@ -174,8 +188,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Color intensity')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: colorIntSlider
+
             minimumValue: 0
             maximumValue: 100
             stepSize: 0.1
@@ -183,14 +199,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(colorInt, colorIntSlider.value / colorIntSlider.maximumValue, colorKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: colorIntSlider.value = colorIntDefault * colorIntSlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: colorKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, colorInt, colorIntSlider.value / colorIntSlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, colorInt, colorIntSlider.value / colorIntSlider.maximumValue);
             }
         }
 
@@ -200,16 +219,38 @@ Shotcut.KeyframableFilter {
     }
 
     Connections {
+        function onChanged() {
+            setControls();
+        }
+
+        function onInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onPropertyChanged(name) {
+            setControls();
+        }
+
         target: filter
-        onInChanged: updateSimpleKeyframes()
-        onOutChanged: updateSimpleKeyframes()
-        onAnimateInChanged: updateSimpleKeyframes()
-        onAnimateOutChanged: updateSimpleKeyframes()
-        onPropertyChanged: setControls()
     }
 
     Connections {
+        function onPositionChanged() {
+            setControls();
+        }
+
         target: producer
-        onPositionChanged: setControls()
     }
 }

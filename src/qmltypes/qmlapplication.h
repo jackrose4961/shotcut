@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 Meltytech, LLC
+ * Copyright (c) 2014-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include <QRect>
 
 namespace Mlt {
-    class Producer;
+class Producer;
 }
 
 class QmlApplication : public QObject
@@ -40,9 +40,10 @@ class QmlApplication : public QObject
     Q_PROPERTY(bool hasFiltersOnClipboard READ hasFiltersOnClipboard NOTIFY filtersCopied)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio CONSTANT)
     Q_PROPERTY(int maxTextureSize READ maxTextureSize CONSTANT)
+    Q_PROPERTY(QStringList wipes READ wipes CONSTANT)
 
 public:
-    static QmlApplication& singleton();
+    static QmlApplication &singleton();
     static Qt::WindowModality dialogModality();
     static QPoint mousePos();
     static QColor toolTipBaseColor();
@@ -50,28 +51,34 @@ public:
     static QString OS();
     static QRect mainWinRect();
     static bool hasFiltersOnClipboard();
-    Q_INVOKABLE static void copyFilters();
+    Q_INVOKABLE static void copyAllFilters();
+    Q_INVOKABLE static void copyEnabledFilters();
+    Q_INVOKABLE static void copyCurrentFilter();
     Q_INVOKABLE static void pasteFilters();
-    Q_INVOKABLE static QString timecode(int frames);
+    Q_INVOKABLE static QString clockFromFrames(int frames);
+    Q_INVOKABLE static QString timeFromFrames(int frames);
     Q_INVOKABLE static int audioChannels();
-    Q_INVOKABLE static QString getNextProjectFile(const QString& filename);
+    Q_INVOKABLE static QString getNextProjectFile(const QString &filename);
     Q_INVOKABLE static bool isProjectFolder();
     static qreal devicePixelRatio();
-    Q_INVOKABLE void showStatusMessage(const QString& message, int timeoutSeconds = 15);
+    Q_INVOKABLE void showStatusMessage(const QString &message, int timeoutSeconds = 15);
     static int maxTextureSize();
     Q_INVOKABLE static bool confirmOutputFilter();
     static QDir dataDir();
     Q_INVOKABLE static QColor contrastingColor(QString color);
+    static QStringList wipes();
+    Q_INVOKABLE static bool addWipe(const QString &filePath);
+    Q_INVOKABLE static bool intersects(const QRectF &a, const QRectF &b);
 
 signals:
     void paletteChanged();
     void filtersCopied();
-    void filtersPasted(Mlt::Producer*);
+    void filtersPasted(Mlt::Producer *);
 
 private:
     explicit QmlApplication();
-    QmlApplication(QmlApplication const&);
-    void operator=(QmlApplication const&);
+    QmlApplication(QmlApplication const &);
+    void operator=(QmlApplication const &);
 };
 
 #endif // QMLAPPLICATION_H

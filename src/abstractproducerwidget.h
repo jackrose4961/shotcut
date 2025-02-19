@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 Meltytech, LLC
+ * Copyright (c) 2012-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +21,26 @@
 #include <MltProducer.h>
 #include <QScopedPointer>
 
+class QWidget;
+
 class AbstractProducerWidget
 {
 public:
     AbstractProducerWidget();
     virtual ~AbstractProducerWidget();
-    virtual Mlt::Producer* newProducer(Mlt::Profile&) = 0;
-    virtual void setProducer(Mlt::Producer*);
+    virtual Mlt::Producer *newProducer(Mlt::Profile &) = 0;
+    virtual void setProducer(Mlt::Producer *);
     virtual Mlt::Properties getPreset() const
-        { Mlt::Properties p; return p; }
-    virtual void loadPreset(Mlt::Properties&) {}
-    Mlt::Producer* producer() const { return m_producer.data(); }
+    {
+        Mlt::Properties p;
+        return p;
+    }
+    virtual void loadPreset(Mlt::Properties &) {}
+    Mlt::Producer *producer() const
+    {
+        return m_producer.data();
+    }
+    static bool isDevice(const QWidget *widget);
 
 protected:
     QScopedPointer<Mlt::Producer> m_producer;

@@ -1,12 +1,15 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Sharpen")
+    keywords: qsTr('sharpness focus clear crisp', 'search keywords for the Sharpen video filter') + ' sharpen gpu'
     mlt_service: "movit.sharpen"
     needsGPU: true
     qml: "ui_movit.qml"
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -15,33 +18,29 @@ Metadata {
             Parameter {
                 name: qsTr('Circle radius')
                 property: 'circle_radius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
-                maximum: 99.99
+                maximum: 10
             },
             Parameter {
                 name: qsTr('Gaussian radius')
                 property: 'gaussian_radius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
-                maximum: 99.99
+                maximum: 10
             },
             Parameter {
                 name: qsTr('Correlation')
                 property: 'correlation'
-                isSimple: true
                 isCurve: true
                 minimum: 0
-                maximum: 1
+                maximum: 0.99
             },
             Parameter {
                 name: qsTr('Noise')
                 property: 'noise'
-                isSimple: true
                 isCurve: true
-                minimum: 0
+                minimum: 0.01
                 maximum: 1
             }
         ]

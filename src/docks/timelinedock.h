@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2025 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,25 +21,32 @@
 #include <QDockWidget>
 #include <QQuickWidget>
 #include <QApplication>
+#include <QTimer>
+#include <QDateTime>
 #include "models/markersmodel.h"
 #include "models/multitrackmodel.h"
+#include "models/subtitlesmodel.h"
+#include "models/subtitlesselectionmodel.h"
 #include "sharedframe.h"
+#include "jobs/ffmpegjob.h"
 
-namespace Ui {
-class TimelineDock;
-}
 namespace Timeline {
 class UpdateCommand;
 class TrimCommand;
 }
 class UndoHelper;
+class QMenu;
 
 class TimelineDock : public QDockWidget
 {
     Q_OBJECT
     Q_PROPERTY(int position READ position WRITE setPosition NOTIFY positionChanged)
     Q_PROPERTY(int currentTrack READ currentTrack WRITE setCurrentTrack NOTIFY currentTrackChanged)
-    Q_PROPERTY(QVariantList selection READ selectionForJS WRITE setSelectionFromJS NOTIFY selectionChanged)
+    Q_PROPERTY(QVariantList selection READ selectionForJS WRITE setSelectionFromJS NOTIFY
+               selectionChanged)
+    Q_PROPERTY(bool isRecording READ isRecording NOTIFY isRecordingChanged)
+    Q_PROPERTY(int loopStart READ loopStart NOTIFY loopChanged)
+    Q_PROPERTY(int loopEnd READ loopEnd NOTIFY loopChanged)
 
 public:
     explicit TimelineDock(QWidget *parent = 0);
@@ -50,50 +57,93 @@ public:
         TrimOutPoint
     };
 
-    MultitrackModel* model() { return &m_model; }
-    MarkersModel* markersModel() { return & m_markersModel; }
-    int position() const { return m_position; }
+    MultitrackModel *model()
+    {
+        return &m_model;
+    }
+    MarkersModel *markersModel()
+    {
+        return & m_markersModel;
+    }
+    SubtitlesModel *subtitlesModel()
+    {
+        return & m_subtitlesModel;
+    }
+    SubtitlesSelectionModel *subtitlesSelectionModel()
+    {
+        return & m_subtitlesSelectionModel;
+    }
+    int position() const
+    {
+        return m_position;
+    }
     void setPosition(int position);
-    Mlt::ClipInfo* getClipInfo(int trackIndex, int clipIndex);
     Mlt::Producer producerForClip(int trackIndex, int clipIndex);
     int clipIndexAtPlayhead(int trackIndex = -1);
     int clipIndexAtPosition(int trackIndex, int position);
-    void chooseClipAtPosition(int position, int& trackIndex, int& clipIndex);
+    void chooseClipAtPosition(int position, int &trackIndex, int &clipIndex);
     void setCurrentTrack(int currentTrack);
     int currentTrack() const;
     int clipCount(int trackIndex) const;
-    void setSelectionFromJS(const QVariantList& list);
-    void setSelection(QList<QPoint> selection = QList<QPoint>(), int trackIndex = -1, bool isMultitrack = false);
+    void setSelectionFromJS(const QVariantList &list);
+    void setSelection(QList<QPoint> selection = QList<QPoint>(), int trackIndex = -1,
+                      bool isMultitrack = false);
     QVariantList selectionForJS() const;
     const QList<QPoint> selection() const;
     const QVector<QUuid> selectionUuids();
+    const QList<QPoint> uuidsToSelection(QVector<QUuid> uuids) const;
     void saveAndClearSelection();
-    void restoreSelection();
+    Q_INVOKABLE void restoreSelection();
+    Q_INVOKABLE QVariantList getGroupForClip(int trackIndex, int clipIndex);
     void selectClipUnderPlayhead();
     int centerOfClip(int trackIndex, int clipIndex);
     bool isTrackLocked(int trackIndex) const;
     void trimClipAtPlayhead(TrimLocation location, bool ripple);
-    bool isRipple() const;
-    Q_INVOKABLE bool isMultitrackSelected() const { return m_selection.isMultitrackSelected; }
-    Q_INVOKABLE int selectedTrack() const { return m_selection.selectedTrack; }
-    Q_INVOKABLE bool isFloating() const { return QDockWidget::isFloating(); }
-    Q_INVOKABLE void copyToSource();
+    Q_INVOKABLE bool isMultitrackSelected() const
+    {
+        return m_selection.isMultitrackSelected;
+    }
+    Q_INVOKABLE int selectedTrack() const
+    {
+        return m_selection.selectedTrack;
+    }
+    Q_INVOKABLE bool isFloating() const
+    {
+        return QDockWidget::isFloating();
+    }
     Q_INVOKABLE static void openProperties();
     void emitSelectedChanged(const QVector<int> &roles);
-    void replaceClipsWithHash(const QString& hash, Mlt::Producer& producer);
+    void replaceClipsWithHash(const QString &hash, Mlt::Producer &producer);
+    Q_INVOKABLE void recordAudio();
+    Q_INVOKABLE void stopRecording();
+    bool isRecording() const
+    {
+        return m_isRecording;
+    }
+    int addTrackIfNeeded(TrackType trackType);
+    void getSelectionRange(int *start, int *end);
+    int loopStart() const
+    {
+        return m_loopStart;
+    }
+    int loopEnd() const
+    {
+        return m_loopEnd;
+    }
 
 signals:
     void currentTrackChanged();
     void selectionChanged();
     void seeked(int position);
-    void positionChanged();
-    void clipOpened(Mlt::Producer* producer);
-    void dragging(const QPointF& pos, int duration);
+    void positionChanged(int position);
+    void loopChanged();
+    void clipOpened(Mlt::Producer *producer);
+    void dragging(const QPointF &pos, int duration);
     void dropped();
     void dropAccepted(const QString &xml);
     void fadeInChanged(int duration);
     void fadeOutChanged(int duration);
-    void selected(Mlt::Producer* producer);
+    void selected(Mlt::Producer *producer);
     void clipClicked();
     void showStatusMessage(QString);
     void clipCopied();
@@ -104,28 +154,32 @@ signals:
     void zoomIn();
     void zoomOut();
     void zoomToFit();
-    void resetZoom();
-    void makeTracksShorter();
-    void makeTracksTaller();
+    void setZoom(double value);
     void markerRangesChanged();
     void markerSeeked(int markerIndex);
+    void isRecordingChanged(bool);
+    void multitrackSelected();
+    void warnTrackLocked(int trackIndex);
+    void refreshWaveforms();
+    void updateThumbnails(int trackIndex, int clipIndex);
 
 public slots:
-    void addAudioTrack();
-    void addVideoTrack();
-    void onShowFrame(const SharedFrame& frame);
+    int addAudioTrack();
+    int addVideoTrack();
+    void alignSelectedClips();
+    void onShowFrame(const SharedFrame &frame);
     void onSeeked(int position);
     void append(int trackIndex);
-    void remove(int trackIndex, int clipIndex);
+    void remove(int trackIndex, int clipIndex, bool ignoreTransition = false);
     bool mergeClipWithNext(int trackIndex, int clipIndex, bool dryrun);
-    void lift(int trackIndex, int clipIndex);
+    void lift(int trackIndex, int clipIndex, bool ignoreTransition = false);
     void removeSelection(bool withCopy = false);
     void liftSelection();
     void incrementCurrentTrack(int by);
     void selectTrackHead(int trackIndex);
     void selectMultitrack();
     void copy(int trackIndex, int clipIndex);
-    void setTrackName(int trackIndex, const QString& value);
+    void setTrackName(int trackIndex, const QString &value);
     void toggleTrackMute(int trackIndex);
     void toggleTrackHidden(int trackIndex);
     void setTrackComposite(int trackIndex, bool composite);
@@ -136,8 +190,7 @@ public slots:
     bool trimClipOut(int trackIndex, int clipIndex, int delta, bool ripple);
     void insert(int trackIndex, int position = -1, const QString &xml = QString(), bool seek = true);
     void overwrite(int trackIndex, int position = -1, const QString &xml = QString(), bool seek = true);
-    void appendFromPlaylist(Mlt::Playlist* playlist, bool skipProxy);
-    void splitClip(int trackIndex = -1, int clipIndex = -1);
+    void appendFromPlaylist(Mlt::Playlist *playlist, bool skipProxy, bool emptyTrack);
     void fadeIn(int trackIndex, int clipIndex = -1, int duration = -1);
     void fadeOut(int trackIndex, int clipIndex = -1, int duration = -1);
     void seekPreviousEdit();
@@ -148,45 +201,69 @@ public slots:
     void insertAudioTrack();
     void insertVideoTrack();
     void removeTrack();
-    void onProducerChanged(Mlt::Producer*);
+    void moveTrack(int fromTrackIndex, int toTrackIndex);
+    void moveTrackUp();
+    void moveTrackDown();
+    void onProducerChanged(Mlt::Producer *);
     void emitSelectedFromSelection();
     void remakeAudioLevels(int trackIndex, int clipIndex, bool force = true);
     void commitTrimCommand();
-    void onRowsInserted(const QModelIndex& parent, int first, int last);
-    void onRowsRemoved(const QModelIndex& parent, int first, int last);
+    void onRowsInserted(const QModelIndex &parent, int first, int last);
+    void onRowsRemoved(const QModelIndex &parent, int first, int last);
+    void onRowsMoved(const QModelIndex &parent, int start, int end, const QModelIndex &destination,
+                     int row);
     void detachAudio(int trackIndex, int clipIndex);
     void selectAll();
-    bool blockSelection(bool block);
+    void selectAllOnCurrentTrack();
     void onProducerModified();
-    void replace(int trackIndex, int clipIndex, const QString& xml = QString());
+    void replace(int trackIndex, int clipIndex, const QString &xml = QString());
     void createOrEditMarker();
+    void createOrEditSelectionMarker();
     void createMarker();
     void editMarker(int markerIndex);
     void deleteMarker(int markerIndex = -1);
     void seekNextMarker();
     void seekPrevMarker();
+    void onFilterModelChanged();
+    void trimClipIn(bool ripple = false);
+    void trimClipOut(bool ripple = false);
+    void initLoad();
+    void handleDrop(int trackIndex, int position, QString xml);
+    void onLoopChanged(int start, int end);
 
 protected:
-    void dragEnterEvent(QDragEnterEvent* event);
-    void dragMoveEvent(QDragMoveEvent* event);
-    void dragLeaveEvent(QDragLeaveEvent* event);
-    void dropEvent(QDropEvent* event);
+    void dragEnterEvent(QDragEnterEvent *event);
+    void dragMoveEvent(QDragMoveEvent *event);
+    void dragLeaveEvent(QDragLeaveEvent *event);
+    void dropEvent(QDropEvent *event);
     bool event(QEvent *event);
-    void keyPressEvent(QKeyEvent* event);
-    void keyReleaseEvent(QKeyEvent* event);
+    void keyPressEvent(QKeyEvent *event);
+    void keyReleaseEvent(QKeyEvent *event);
 
 private:
     bool isBlank(int trackIndex, int clipIndex);
-    void pulseLockButtonOnTrack(int trackIndex);
+    bool clipsAreSelected();
+    bool blankIsSelected();
+    bool nothingIsSelected();
+    bool isTransition(int trackIndex, int clipIndex);
     void emitNonSeekableWarning();
-    void addTrackIfNeeded(int mltTrackIndex, Mlt::Producer* srcTrack);
+    void addTrackIfNeeded(int mltTrackIndex, Mlt::Producer *srcTrack);
+    void setupActions();
+    bool isMultitrackValid()
+    {
+        return m_model.tractor() && !m_model.trackList().empty();
+    }
+    void reportSelectionChange();
+    void applyCopiedFiltersToSelectdClips();
+    void insertOrOverwriteDrop(int trackIndex, int position, const QString &xml);
 
-    Ui::TimelineDock *ui;
     QQuickWidget m_quickView;
     MultitrackModel m_model;
     MarkersModel m_markersModel;
+    SubtitlesModel m_subtitlesModel;
+    SubtitlesSelectionModel m_subtitlesSelectionModel;
     int m_position;
-    QScopedPointer<Timeline::UpdateCommand> m_updateCommand;
+    std::unique_ptr<Timeline::UpdateCommand> m_updateCommand;
     bool m_ignoreNextPositionChange;
     struct Selection {
         QList<QPoint> selectedClips; // x is the clip index, y is the track index
@@ -194,38 +271,40 @@ private:
         bool isMultitrackSelected;
     };
     Selection m_selection;
-    Selection m_savedSelection;
-    QScopedPointer<Timeline::TrimCommand> m_trimCommand;
-    QScopedPointer<UndoHelper> m_undoHelper;
+    int m_savedSelectedTrack {-1};
+    bool m_savedIsMultitrackSelected {false};
+    QVector<QUuid> m_savedSelectionUuids;
+    QTimer m_selectionSignalTimer;
+    std::unique_ptr<Timeline::TrimCommand> m_trimCommand;
+    std::unique_ptr<UndoHelper> m_undoHelper;
     int m_trimDelta;
     int m_transitionDelta;
-    bool m_blockSetSelection;
+    bool m_isRecording {false};
+    std::unique_ptr<AbstractJob> m_recordJob;
+    QTimer m_recordingTimer;
+    QDateTime m_recordingTime;
+    int m_recordingTrackIndex {-1};
+    int m_recordingClipIndex {-1};
+    int m_currentTrack {0};
+    QMenu *m_mainMenu {nullptr};
+    QMenu *m_clipMenu {nullptr};
+    int m_loopStart {-1};
+    int m_loopEnd {-1};
 
 private slots:
-    void load(bool force = false);
+    void load(bool force);
     void onTopLevelChanged(bool floating);
     void onTransitionAdded(int trackIndex, int clipIndex, int position, bool ripple);
     void selectClip(int trackIndex, int clipIndex);
     void onMultitrackClosed();
-    void reloadTimelineMarkers();
-};
-
-class TimelineSelectionBlocker
-{
-public:
-    TimelineSelectionBlocker(TimelineDock& timeline)
-        : m_timelineDock(timeline)
-    {
-        m_timelineDock.blockSelection(true);
-    }
-    ~TimelineSelectionBlocker()
-    {
-        QCoreApplication::processEvents();
-        m_timelineDock.blockSelection(false);
-    }
-
-private:
-    TimelineDock& m_timelineDock;
+    void reloadTimelineModels();
+    void onRecordStarted();
+    void updateRecording();
+    void onRecordFinished(AbstractJob *, bool);
+    void onWarnTrackLocked();
+    void onTimelineRightClicked();
+    void onClipRightClicked();
+    void onNoMoreEmptyTracks(bool isAudio);
 };
 
 #endif // TIMELINEDOCK_H

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,17 +25,16 @@
 #include <QDebug>
 #include <QtMath>
 
-static QString suffixFromFilter(const QString& filterText)
+static QString suffixFromFilter(const QString &filterText)
 {
     QString suffix = filterText.section("*", 1, 1).section(")", 0, 0).section(" ", 0, 0);
-    if ( !suffix.startsWith(".") )
-    {
+    if (!suffix.startsWith(".") ) {
         suffix.clear();
     }
     return suffix;
 }
 
-SaveImageDialog::SaveImageDialog(QWidget *parent, const QString& caption, QImage& image)
+SaveImageDialog::SaveImageDialog(QWidget *parent, const QString &caption, QImage &image)
     : QFileDialog(parent, caption)
     , m_image(image)
 {
@@ -45,14 +44,15 @@ SaveImageDialog::SaveImageDialog(QWidget *parent, const QString& caption, QImage
     setOptions(Util::getFileDialogOptions());
     setDirectory(Settings.savePath());
 
-    QString nameFilter = tr("PNG (*.png);;BMP (*.bmp);;JPEG (*.jpg *.jpeg);;PPM (*.ppm);;TIFF (*.tif *.tiff);;WebP (*.webp);;All Files (*)");
+    QString nameFilter =
+        tr("PNG (*.png);;BMP (*.bmp);;JPEG (*.jpg *.jpeg);;PPM (*.ppm);;TIFF (*.tif *.tiff);;WebP (*.webp);;All Files (*)");
     setNameFilter(nameFilter);
 
     QStringList nameFilters = nameFilter.split(";;");
     QString suffix = Settings.exportFrameSuffix();
     QString selectedNameFilter = nameFilters[0];
-    for (const auto& f : nameFilters) {
-        if (f.contains(suffix)) {
+    for (const auto &f : nameFilters) {
+        if (f.contains(suffix.toLower())) {
             selectedNameFilter = f;
             break;
         }
@@ -60,16 +60,20 @@ SaveImageDialog::SaveImageDialog(QWidget *parent, const QString& caption, QImage
     selectNameFilter(selectedNameFilter);
 
     // Use the current player time as a suggested file name
-    QString nameSuggestion = QString("Shotcut_%1").arg(MLT.producer()->frame_time( mlt_time_clock ));
+    QString nameSuggestion = QStringLiteral("Shotcut_%1").arg(MLT.producer()->frame_time(
+                                                                  mlt_time_clock));
     nameSuggestion = nameSuggestion.replace(":", "_");
     nameSuggestion = nameSuggestion.replace(".", "_");
     nameSuggestion += suffix;
     selectFile(nameSuggestion);
 
+#if !defined(Q_OS_WIN)
     if (!connect(this, &QFileDialog::filterSelected, this, &SaveImageDialog::onFilterSelected))
-         connect(this, SIGNAL(filterSelected(const QString&)), SLOT(const onFilterSelected(const QString&)));
+        connect(this, SIGNAL(filterSelected(const QString &)),
+                SLOT(const onFilterSelected(const QString &)));
+#endif
     if (!connect(this, &QFileDialog::fileSelected, this, &SaveImageDialog::onFileSelected))
-         connect(this, SIGNAL(fileSelected(const QString&)), SLOT(onFileSelected(const QString&)));
+        connect(this, SIGNAL(fileSelected(const QString &)), SLOT(onFileSelected(const QString &)));
 }
 
 void SaveImageDialog::onFilterSelected(const QString &filter)
@@ -106,8 +110,7 @@ void SaveImageDialog::onFileSelected(const QString &file)
     QFileInfo fi(m_saveFile);
     if (fi.suffix().isEmpty()) {
         QString suffix = suffixFromFilter(selectedNameFilter());
-        if ( suffix.isEmpty() )
-        {
+        if ( suffix.isEmpty() ) {
             suffix = ".png";
         }
         m_saveFile += suffix;
@@ -119,9 +122,9 @@ void SaveImageDialog::onFileSelected(const QString &file)
     qreal aspectRatio = (qreal) m_image.width() / m_image.height();
     if (qFloor(aspectRatio * 1000) != qFloor(MLT.profile().dar() * 1000)) {
         m_image = m_image.scaled(qRound(m_image.height() * MLT.profile().dar()), m_image.height(),
-                             Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                                 Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     }
-    m_image.save(m_saveFile, Q_NULLPTR, (fi.suffix() == "webp")? 80 : -1);
+    m_image.save(m_saveFile, Q_NULLPTR, (fi.suffix() == "webp") ? 80 : -1);
     Settings.setSavePath(fi.path());
-    Settings.setExportFrameSuffix(QString(".") + fi.suffix());
+    Settings.setExportFrameSuffix(QStringLiteral(".") + fi.suffix());
 }

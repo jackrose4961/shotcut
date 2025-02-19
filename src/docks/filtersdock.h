@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,15 +30,22 @@ class QmlFilter;
 class QmlMetadata;
 class MetadataModel;
 class AttachedFiltersModel;
+class MotionTrackerModel;
+class SubtitlesModel;
 
 class FiltersDock : public QDockWidget
 {
     Q_OBJECT
-    
-public:
-    explicit FiltersDock(MetadataModel* metadataModel, AttachedFiltersModel* attachedModel, QWidget *parent = 0);
 
-    QmlProducer* qmlProducer() { return &m_producer; }
+public:
+    explicit FiltersDock(MetadataModel *metadataModel, AttachedFiltersModel *attachedModel,
+                         MotionTrackerModel *motionTrackerModel, SubtitlesModel *subtitlesModel,
+                         QWidget *parent = 0);
+
+    QmlProducer *qmlProducer()
+    {
+        return &m_producer;
+    }
 
 signals:
     void currentFilterRequested(int attachedIndex);
@@ -48,21 +55,23 @@ signals:
     void producerOutChanged(int delta);
 
 public slots:
-    void setCurrentFilter(QmlFilter* filter, QmlMetadata* meta, int index);
+    void setCurrentFilter(QmlFilter *filter, QmlMetadata *meta, int index);
     void onSeeked(int position);
-    void onShowFrame(const SharedFrame& frame);
+    void onShowFrame(const SharedFrame &frame);
     void openFilterMenu() const;
+    void showCopyFilterMenu();
+    void onServiceInChanged(int delta, Mlt::Service *service);
+    void load();
 
 protected:
     bool event(QEvent *event);
-    void keyPressEvent(QKeyEvent* event);
-
-private slots:
-    void resetQview();
+    void keyPressEvent(QKeyEvent *event);
 
 private:
+    void setupActions();
     QQuickWidget m_qview;
     QmlProducer m_producer;
+    unsigned loadTries {0};
 };
 
 #endif // FILTERSDOCK_H

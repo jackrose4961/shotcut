@@ -1,7 +1,7 @@
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
-** Copyright (c) 2020-2021 Meltytech, LLC
+** Copyright (c) 2020-2024 Meltytech, LLC
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions are
@@ -41,6 +41,7 @@
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QStringBuilder>
+#include <QStringConverter>
 
 QmlRichText::QmlRichText()
     : m_target(0)
@@ -59,8 +60,8 @@ void QmlRichText::setTarget(QQuickItem *target)
         return;
 
     QVariant doc = m_target->property("textDocument");
-    if (doc.canConvert<QQuickTextDocument*>()) {
-        QQuickTextDocument *qqdoc = doc.value<QQuickTextDocument*>();
+    if (doc.canConvert<QQuickTextDocument *>()) {
+        QQuickTextDocument *qqdoc = doc.value<QQuickTextDocument *>();
         if (qqdoc) {
             m_doc = qqdoc->textDocument();
             connect(m_doc, &QTextDocument::contentsChanged, this, &QmlRichText::sizeChanged);
@@ -79,20 +80,24 @@ void QmlRichText::setFileUrl(const QUrl &arg)
             if (file.open(QFile::ReadOnly)) {
                 QByteArray data = file.readAll();
                 if (Qt::mightBeRichText(data)) {
-                    QTextCodec *codec = QTextCodec::codecForHtml(data,  QTextCodec::codecForName("UTF-8"));
-                    setText(codec->toUnicode(data));
+                    auto decoder = QStringDecoder(QStringConverter::encodingForHtml(data).value_or(
+                                                      QStringConverter::Utf8));
+                    setText(decoder(data));
                 } else {
-                    QTextCodec *codec = QTextCodec::codecForUtfText(data);
+                    auto decoder = QStringDecoder(QStringConverter::encodingForData(data).value_or(
+                                                      QStringConverter::Utf8));
                     setText(QStringLiteral("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">"
-                            "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">"
-                            "p, li { white-space: pre-wrap; }"
-                       #ifdef Q_OS_WIN
-                            "body { font-family:Verdana; font-size:72pt; font-weight:600; font-style:normal; color:#ffffff; }"
-                       #else
-                            "body { font-family:sans-serif; font-size:72pt; font-weight:600; font-style:normal; color:#ffffff; }"
-                       #endif
-                            "</style></head><body>")
-                            % codec->toUnicode(data)
+                                           "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">"
+                                           "p, li { white-space: pre-wrap; }"
+#if defined(Q_OS_WIN)
+                                           "body { font-family:Verdana; font-size:72pt; font-weight:normal; font-style:normal; color:#ffffff; }"
+#elif defined(Q_OS_MAC)
+                                           "body { font-family:Helvetica; font-size:72pt; font-weight:normal; font-style:normal; color:#ffffff; }"
+#else
+                                           "body { font-family:sans-serif; font-size:72pt; font-weight:normal; font-style:normal; color:#ffffff; }"
+#endif
+                                           "</style></head><body>")
+                            % QString(decoder(data))
                             % QStringLiteral("</body></html>"));
                 }
                 if (m_doc)
@@ -118,8 +123,10 @@ void QmlRichText::setText(const QString &arg)
     }
 }
 
-void QmlRichText::saveAs(const QUrl &arg, const QString &fileType)
+void QmlRichText::saveAs(const QUrl &arg, QString fileType)
 {
+    if (fileType.isEmpty())
+        fileType = QFileInfo(arg.toString()).suffix();
     bool isHtml = fileType.contains(QLatin1String("htm"));
     QLatin1String ext(isHtml ? ".html" : ".txt");
     QString localPath = arg.toLocalFile();
@@ -143,22 +150,23 @@ void QmlRichText::insertTable(int rows, int columns, int border)
         return;
     QString color = textColor().name(QColor::HexArgb);
     QString html = QString(
-                "<style>"
-                "table { border-style: solid; border-color: %1 }"
-                "td { font: %2 %3 %4pt %5;"
-                "color: %1; vertical-align: top; }"
-                "</style>"
-                "<table width=100% cellspacing=0 cellpadding=%6 border=%6>")
-            .arg(color)
-            .arg(italic()?"italic":"normal").arg(bold()?"bold":"normal").arg(fontSize()).arg(fontFamily())
-            .arg(border);
+                       "<style>"
+                       "table { border-style: solid; border-color: %1 }"
+                       "td { font: %2 %3 %4pt %5;"
+                       "color: %1; vertical-align: top; }"
+                       "</style>"
+                       "<table width=100% cellspacing=0 cellpadding=%6 border=%6>")
+                   .arg(color)
+                   .arg(italic() ? "italic" : "normal").arg(bold() ? "bold" : "normal").arg(fontSize()).arg(
+                       fontFamily())
+                   .arg(border);
     for (auto i = 0; i < rows; ++i) {
         html += "<tr>";
         for (auto j = 0; j < columns; ++j) {
             if (j == 0) {
-                html += QString("<td>%1 %2</td>").arg(tr("Row")).arg(i + 1);
+                html += QStringLiteral("<td>%1 %2</td>").arg(tr("Row")).arg(i + 1);
             } else {
-                html += QString("<td>%1 %2</td>").arg(tr("Column")).arg(j + 1);
+                html += QStringLiteral("<td>%1 %2</td>").arg(tr("Column")).arg(j + 1);
             }
             if (border == 0 && j + 1 < columns) {
                 html += "<td width=5%></td>";
@@ -389,12 +397,7 @@ void QmlRichText::setFontFamily(const QString &arg)
     if (cursor.isNull())
         return;
     QTextCharFormat format;
-    format.setFontFamily(arg);
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 13, 0))
-    // Below is needed for Qt 5.15.1 on Windows.
-    // See https://bugreports.qt.io/browse/QTBUG-80475
     format.setFontFamilies({arg});
-#endif
     mergeFormatOnWordOrSelection(format);
     emit fontFamilyChanged();
 }

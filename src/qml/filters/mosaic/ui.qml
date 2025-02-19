@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Meltytech, LLC
+ * Copyright (c) 2019-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,54 +14,52 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Shotcut.KeyframableFilter {
     property string xsize: '0'
     property string ysize: '1'
-    property real maxFilterPercent: 50.0
-    property real maxUserPercent: 20.0
+    property real maxFilterPercent: 50
+    property real maxUserPercent: 20
     property real defaultValue: 2.5 / maxFilterPercent
+
+    function setControls() {
+        var position = getPosition();
+        blockUpdate = true;
+        xsizeSlider.value = filter.getDouble(xsize, position) * maxFilterPercent;
+        xsizeKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(xsize) > 0;
+        ysizeSlider.value = filter.getDouble(ysize, position) * maxFilterPercent;
+        ysizeKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(ysize) > 0;
+        blockUpdate = false;
+        enableControls(isSimpleKeyframesActive());
+    }
+
+    function enableControls(enabled) {
+        xsizeSlider.enabled = ysizeSlider.enabled = enabled;
+    }
+
+    function updateSimpleKeyframes() {
+        setControls();
+        updateFilter(xsize, xsizeSlider.value / maxFilterPercent, xsizeKeyframesButton, null);
+        updateFilter(ysize, ysizeSlider.value / maxFilterPercent, ysizeKeyframesButton, null);
+    }
 
     keyframableParameters: [xsize, ysize]
     startValues: [0, 0]
     middleValues: [defaultValue, defaultValue]
     endValues: [0, 0]
-
     width: 200
     height: 50
-
     Component.onCompleted: {
         if (filter.isNew) {
-            filter.set(xsize, defaultValue)
-            filter.set(ysize, defaultValue)
-            filter.savePreset(preset.parameters)
+            filter.set(xsize, defaultValue);
+            filter.set(ysize, defaultValue);
+            filter.savePreset(preset.parameters);
         }
-        setControls()
-    }
-
-    function setControls() {
-        var position = getPosition()
-        blockUpdate = true
-        xsizeSlider.value = filter.getDouble(xsize, position) * maxFilterPercent
-        xsizeKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(xsize) > 0
-        ysizeSlider.value = filter.getDouble(ysize, position) * maxFilterPercent
-        ysizeKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(ysize) > 0
-        blockUpdate = false
-        enableControls(isSimpleKeyframesActive())
-    }
-
-    function enableControls(enabled) {
-        xsizeSlider.enabled = ysizeSlider.enabled = enabled
-    }
-
-    function updateSimpleKeyframes() {
-        updateFilter(xsize, xsizeSlider.value / maxFilterPercent, xsizeKeyframesButton, null)
-        updateFilter(ysize, ysizeSlider.value / maxFilterPercent, ysizeKeyframesButton, null)
+        setControls();
     }
 
     GridLayout {
@@ -73,16 +71,18 @@ Shotcut.KeyframableFilter {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: [xsize, ysize]
             Layout.columnSpan: 3
             onBeforePresetLoaded: {
-                resetSimpleKeyframes()
+                resetSimpleKeyframes();
             }
             onPresetSelected: {
-                setControls()
-                initializeSimpleKeyframes()
+                setControls();
+                initializeSimpleKeyframes();
             }
         }
 
@@ -90,8 +90,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Width')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: xsizeSlider
+
             minimumValue: 0
             maximumValue: 20
             stepSize: 0.1
@@ -99,14 +101,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(xsize, xsizeSlider.value / maxFilterPercent, xsizeKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: xsizeSlider.value = defaultValue * maxFilterPercent
         }
+
         Shotcut.KeyframesButton {
             id: xsizeKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, xsize, xsizeSlider.value / maxFilterPercent)
+                enableControls(true);
+                toggleKeyframes(checked, xsize, xsizeSlider.value / maxFilterPercent);
             }
         }
 
@@ -114,8 +119,10 @@ Shotcut.KeyframableFilter {
             text: qsTr('Height')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: ysizeSlider
+
             minimumValue: 0
             maximumValue: 20
             stepSize: 0.1
@@ -123,14 +130,17 @@ Shotcut.KeyframableFilter {
             suffix: ' %'
             onValueChanged: updateFilter(ysize, ysizeSlider.value / maxFilterPercent, ysizeKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: ysizeSlider.value = defaultValue * maxFilterPercent
         }
+
         Shotcut.KeyframesButton {
             id: ysizeKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, ysize, ysizeSlider.value / maxFilterPercent)
+                enableControls(true);
+                toggleKeyframes(checked, ysize, ysizeSlider.value / maxFilterPercent);
             }
         }
 
@@ -140,16 +150,38 @@ Shotcut.KeyframableFilter {
     }
 
     Connections {
+        function onChanged() {
+            setControls();
+        }
+
+        function onInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onPropertyChanged(name) {
+            setControls();
+        }
+
         target: filter
-        onInChanged: updateSimpleKeyframes()
-        onOutChanged: updateSimpleKeyframes()
-        onAnimateInChanged: updateSimpleKeyframes()
-        onAnimateOutChanged: updateSimpleKeyframes()
-        onPropertyChanged: setControls()
     }
 
     Connections {
+        function onPositionChanged() {
+            setControls();
+        }
+
         target: producer
-        onPositionChanged: setControls()
     }
 }

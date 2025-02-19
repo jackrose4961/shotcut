@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Meltytech, LLC
+ * Copyright (c) 2019-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,48 +14,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 Shotcut.KeyframableFilter {
     property string levels: '0'
-    property double levelsDefault: 0.10
-   
+    property double levelsDefault: 0.1
+
+    function setControls() {
+        var position = getPosition();
+        blockUpdate = true;
+        levelsSlider.value = filter.getDouble(levels, position) * levelsSlider.maximumValue;
+        levelKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(levels) > 0;
+        blockUpdate = false;
+        enableControls(isSimpleKeyframesActive());
+    }
+
+    function enableControls(enabled) {
+        levelsSlider.enabled = enabled;
+    }
+
+    function updateSimpleKeyframes() {
+        setControls();
+        updateFilter(levels, levelsSlider.value / levelsSlider.maximumValue, levelKeyframesButton, null);
+    }
+
     keyframableParameters: [levels]
     startValues: [0.5]
     middleValues: [levelsDefault]
     endValues: [0.5]
-
     width: 350
     height: 100
-
     Component.onCompleted: {
-        filter.set('threads', 0)
+        filter.set('threads', 0);
         if (filter.isNew) {
-            filter.set(levels, levelsDefault)
-            filter.savePreset(preset.parameters)
+            filter.set(levels, levelsDefault);
+            filter.savePreset(preset.parameters);
         }
-        setControls()
-    }
-
-    function setControls() {
-        var position = getPosition()
-        blockUpdate = true
-        levelsSlider.value = filter.getDouble(levels, position) * levelsSlider.maximumValue
-        levelKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(levels) > 0
-        blockUpdate = false
-        enableControls(isSimpleKeyframesActive())
-    }
-
-    function enableControls(enabled) {
-        levelsSlider.enabled = enabled
-    }
-
-    function updateSimpleKeyframes() {
-        updateFilter(levels, levelsSlider.value / levelsSlider.maximumValue, levelKeyframesButton, null)
+        setControls();
     }
 
     GridLayout {
@@ -67,16 +65,18 @@ Shotcut.KeyframableFilter {
             text: qsTr('Preset')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.Preset {
             id: preset
+
             parameters: [levels]
             Layout.columnSpan: 3
             onBeforePresetLoaded: {
-                resetSimpleKeyframes()
+                resetSimpleKeyframes();
             }
             onPresetSelected: {
-                setControls()
-                initializeSimpleKeyframes()
+                setControls();
+                initializeSimpleKeyframes();
             }
         }
 
@@ -84,42 +84,69 @@ Shotcut.KeyframableFilter {
             text: qsTr('Levels', 'Posterize filter')
             Layout.alignment: Qt.AlignRight
         }
+
         Shotcut.SliderSpinner {
             id: levelsSlider
+
             minimumValue: 0
-            maximumValue: 100.0
+            maximumValue: 100
             stepSize: 1
             decimals: 0
             suffix: ' %'
             onValueChanged: updateFilter(levels, levelsSlider.value / levelsSlider.maximumValue, levelKeyframesButton, getPosition())
         }
+
         Shotcut.UndoButton {
             onClicked: levelsSlider.value = levelsDefault * levelsSlider.maximumValue
         }
+
         Shotcut.KeyframesButton {
             id: levelKeyframesButton
+
             onToggled: {
-                enableControls(true)
-                toggleKeyframes(checked, levels, levelsSlider.value / levelsSlider.maximumValue)
+                enableControls(true);
+                toggleKeyframes(checked, levels, levelsSlider.value / levelsSlider.maximumValue);
             }
         }
-        
+
         Item {
             Layout.fillHeight: true
         }
     }
 
     Connections {
+        function onChanged() {
+            setControls();
+        }
+
+        function onInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onPropertyChanged(name) {
+            setControls();
+        }
+
         target: filter
-        onInChanged: updateSimpleKeyframes()
-        onOutChanged: updateSimpleKeyframes()
-        onAnimateInChanged: updateSimpleKeyframes()
-        onAnimateOutChanged: updateSimpleKeyframes()
-        onPropertyChanged: setControls()
     }
 
     Connections {
+        function onPositionChanged() {
+            setControls();
+        }
+
         target: producer
-        onPositionChanged: setControls()
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 Meltytech, LLC
+ * Copyright (c) 2012-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,27 +37,32 @@ public:
         COLUMN_COUNT
     };
 
-    static JobQueue& singleton(QObject* parent = 0);
+    static JobQueue &singleton(QObject *parent = 0);
     void cleanup();
-    AbstractJob* add(AbstractJob *job);
-    AbstractJob* jobFromIndex(const QModelIndex& index) const;
+    AbstractJob *add(AbstractJob *job);
+    AbstractJob *jobFromIndex(const QModelIndex &index) const;
     void pause();
+    void pauseCurrent();
     void resume();
+    void resumeCurrent();
     bool isPaused() const;
     bool hasIncomplete() const;
-    void remove(const QModelIndex& index);
+    void remove(const QModelIndex &index);
     void removeFinished();
-    QList<AbstractJob*> jobs() const { return m_jobs; }
+    QList<AbstractJob *> jobs() const
+    {
+        return m_jobs;
+    }
 
 signals:
     void jobAdded();
 
 public slots:
-    void onProgressUpdated(QStandardItem* standardItem, int percent);
-    void onFinished(AbstractJob* job, bool isSuccess, QString time);
+    void onProgressUpdated(QStandardItem *standardItem, int percent);
+    void onFinished(AbstractJob *job, bool isSuccess, QString time);
 
 private:
-    QList<AbstractJob*> m_jobs;
+    QList<AbstractJob *> m_jobs;
     QMutex m_mutex; // protects m_jobs
     bool m_paused;
 };

@@ -1,13 +1,16 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Brightness")
     mlt_service: "brightness"
+    keywords: qsTr('lightness value exposure', 'search keywords for the Brightness video filter') + ' brightness'
     qml: "ui.qml"
+    icon: 'icon.webp'
     isFavorite: true
     gpuAlt: "movit.opacity"
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -16,7 +19,6 @@ Metadata {
             Parameter {
                 name: qsTr('Level')
                 property: 'level'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 2

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Meltytech, LLC
+ * Copyright (c) 2018-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,10 @@ public:
 class FilePropertiesPostJobAction : public PostJobAction
 {
 public:
-    FilePropertiesPostJobAction(const QString& srcFile, const QString& dstFile)
+    FilePropertiesPostJobAction(const QString &srcFile, const QString &dstFile)
         : m_srcFile(srcFile)
         , m_dstFile(dstFile)
-        {}
+    {}
     virtual ~FilePropertiesPostJobAction() {}
     virtual void doAction();
 
@@ -46,10 +46,10 @@ protected:
 class OpenPostJobAction : public FilePropertiesPostJobAction
 {
 public:
-    OpenPostJobAction(const QString& srcFile, const QString& dstFile, const QString& fileNameToRemove)
+    OpenPostJobAction(const QString &srcFile, const QString &dstFile, const QString &fileNameToRemove)
         : FilePropertiesPostJobAction(srcFile, dstFile)
         , m_fileNameToRemove(fileNameToRemove)
-        {}
+    {}
     void doAction();
 
 private:
@@ -59,12 +59,13 @@ private:
 class ReplaceOnePostJobAction : public FilePropertiesPostJobAction
 {
 public:
-    ReplaceOnePostJobAction(const QString& srcFile, const QString& dstFile, const QString& fileNameToRemove, const QUuid& srcUuid, int in)
+    ReplaceOnePostJobAction(const QString &srcFile, const QString &dstFile,
+                            const QString &fileNameToRemove, const QUuid &srcUuid, int in)
         : FilePropertiesPostJobAction(srcFile, dstFile)
         , m_fileNameToRemove(fileNameToRemove)
         , m_uuid(srcUuid)
         , m_in(in)
-        {}
+    {}
     void doAction();
 
 private:
@@ -76,10 +77,10 @@ private:
 class ReplaceAllPostJobAction : public FilePropertiesPostJobAction
 {
 public:
-    ReplaceAllPostJobAction(const QString& srcFile, const QString& dstFile, const QString& srcHash)
+    ReplaceAllPostJobAction(const QString &srcFile, const QString &dstFile, const QString &srcHash)
         : FilePropertiesPostJobAction(srcFile, dstFile)
         , m_hash(srcHash)
-        {}
+    {}
     void doAction();
 
 private:
@@ -89,12 +90,12 @@ private:
 class ProxyReplacePostJobAction : public FilePropertiesPostJobAction
 {
 public:
-    ProxyReplacePostJobAction(const QString& srcFile, const QString& dstFile, const QString& srcHash)
+    ProxyReplacePostJobAction(const QString &srcFile, const QString &dstFile, const QString &srcHash)
         : FilePropertiesPostJobAction(srcFile, dstFile)
         , m_srcFile(srcFile)
         , m_dstFile(dstFile)
         , m_hash(srcHash)
-        {}
+    {}
     void doAction();
 
 private:
@@ -106,14 +107,38 @@ private:
 class ProxyFinalizePostJobAction : public FilePropertiesPostJobAction
 {
 public:
-    ProxyFinalizePostJobAction(const QString& srcFile, const QString& dstFile)
+    ProxyFinalizePostJobAction(const QString &srcFile, const QString &dstFile)
         : FilePropertiesPostJobAction(srcFile, dstFile)
         , m_dstFile(dstFile)
-        {}
+    {}
     void doAction();
 
 private:
     QString m_dstFile;
+};
+
+class SubtitlesDock;
+
+class ImportSrtPostJobAction : public PostJobAction
+{
+public:
+    ImportSrtPostJobAction(const QString &srtFile, const QString &trackName, const QString &lang,
+                           bool includeNonspoken, SubtitlesDock *dock)
+        : m_srtFile(srtFile)
+        , m_trackName(trackName)
+        , m_lang(lang)
+        , m_includeNonspoken(includeNonspoken)
+        , m_dock(dock)
+    {}
+    virtual ~ImportSrtPostJobAction() {}
+    void doAction();
+
+protected:
+    const QString m_srtFile;
+    const QString m_trackName;
+    const QString m_lang;
+    const bool m_includeNonspoken;
+    SubtitlesDock *m_dock;
 };
 
 #endif // POSTJOBACTION_H

@@ -1,13 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+// SPDX-License-Identifier: GPL-2.0-or-later
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("360: Hemispherical to Equirectangular")
     mlt_service: "frei0r.bigsh0t_hemi_to_eq"
+    keywords: qsTr('spherical projection dual fisheye', 'search keywords for the 360: Hemispherical to Equirectangular video filter') + ' 360: hemispherical to equirectangular bigsh0t'
     objectName: "bigsh0t_hemi_to_eq"
     qml: "ui.qml"
+    icon: "icon.webp"
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -16,15 +19,13 @@ Metadata {
             Parameter {
                 name: qsTr('Yaw')
                 property: 'yaw'
-                isSimple: true
                 isCurve: true
                 minimum: -360
                 maximum: 360
             },
             Parameter {
-                name: qsTr('Pitch')
+                name: qsTr('Pitch', 'rotation around the side-to-side axis (roll, pitch, yaw)')
                 property: 'pitch'
-                isSimple: true
                 isCurve: true
                 minimum: -180
                 maximum: 180
@@ -32,15 +33,13 @@ Metadata {
             Parameter {
                 name: qsTr('Roll')
                 property: 'roll'
-                isSimple: true
                 isCurve: true
                 minimum: -180
                 maximum: 180
             },
             Parameter {
-                name: qsTr('FOV')
+                name: qsTr('FOV', 'field of view')
                 property: 'fov'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 360
@@ -48,7 +47,6 @@ Metadata {
             Parameter {
                 name: qsTr('Radius')
                 property: 'radius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -56,7 +54,6 @@ Metadata {
             Parameter {
                 name: qsTr('Front X')
                 property: 'frontX'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -64,7 +61,6 @@ Metadata {
             Parameter {
                 name: qsTr('Front Y')
                 property: 'frontY'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -72,7 +68,6 @@ Metadata {
             Parameter {
                 name: qsTr('Front Up')
                 property: 'frontUp'
-                isSimple: true
                 isCurve: true
                 minimum: -360
                 maximum: 360
@@ -80,7 +75,6 @@ Metadata {
             Parameter {
                 name: qsTr('Back X')
                 property: 'backX'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -88,7 +82,6 @@ Metadata {
             Parameter {
                 name: qsTr('Back Y')
                 property: 'backY'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -96,7 +89,6 @@ Metadata {
             Parameter {
                 name: qsTr('Back Up')
                 property: 'backUp'
-                isSimple: true
                 isCurve: true
                 minimum: -360
                 maximum: 360
@@ -104,7 +96,6 @@ Metadata {
             Parameter {
                 name: qsTr('Nadir Radius')
                 property: 'nadirRadius'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1
@@ -112,7 +103,6 @@ Metadata {
             Parameter {
                 name: qsTr('Nadir Start')
                 property: 'nadirCorrectionStart'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 1

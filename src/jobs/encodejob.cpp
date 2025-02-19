@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020 Meltytech, LLC
+ * Copyright (c) 2012-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,12 +34,19 @@
 
 #include <Logger.h>
 
-EncodeJob::EncodeJob(const QString &name, const QString &xml, int frameRateNum, int frameRateDen)
-    : MeltJob(name, xml, frameRateNum, frameRateDen)
+EncodeJob::EncodeJob(const QString &name, const QString &xml, int frameRateNum, int frameRateDen,
+                     QThread::Priority priority)
+    : MeltJob(name, xml, frameRateNum, frameRateDen, priority)
 {
-    QAction* action = new QAction(tr("Open"), this);
+    QAction *action = new QAction(tr("Open"), this);
+    action->setData("Open");
     action->setToolTip(tr("Open the output file in the Shotcut player"));
     connect(action, SIGNAL(triggered()), this, SLOT(onOpenTiggered()));
+    m_successActions << action;
+
+    action = new QAction(tr("Show In Files"), this);
+    action->setToolTip(tr("Show In Files"));
+    connect(action, SIGNAL(triggered()), this, SLOT(onShowInFilesTriggered()));
     m_successActions << action;
 
     action = new QAction(tr("Show In Folder"), this);
@@ -62,8 +69,8 @@ void EncodeJob::onVideoQualityTriggered()
     QString directory = Settings.encodePath();
     QString caption = tr("Video Quality Report");
     QString nameFilter = tr("Text Documents (*.txt);;All Files (*)");
-    QString reportPath= QFileDialog::getSaveFileName(&MAIN, caption, directory, nameFilter,
-        nullptr, Util::getFileDialogOptions());
+    QString reportPath = QFileDialog::getSaveFileName(&MAIN, caption, directory, nameFilter,
+                                                      nullptr, Util::getFileDialogOptions());
     if (!reportPath.isEmpty()) {
         QFileInfo fi(reportPath);
         if (fi.suffix().isEmpty())
@@ -108,7 +115,7 @@ void EncodeJob::onVideoQualityTriggered()
 
             // Create job and add it to the queue.
             JOBS.add(new VideoQualityJob(objectName(), dom.toString(2), reportPath,
-                     MLT.profile().frame_rate_num(), MLT.profile().frame_rate_den()));
+                                         MLT.profile().frame_rate_num(), MLT.profile().frame_rate_den()));
         }
     }
 }
@@ -118,12 +125,12 @@ void EncodeJob::onSpatialMediaTriggered()
     // Get the location and file name for the report.
     QString caption = tr("Set Equirectangular Projection");
     QFileInfo info(objectName());
-    QString directory = QString("%1/%2 - ERP.%3")
-            .arg(Settings.encodePath())
-            .arg(info.completeBaseName())
-            .arg(info.suffix());
+    QString directory = QStringLiteral("%1/%2 - ERP.%3")
+                        .arg(Settings.encodePath())
+                        .arg(info.completeBaseName())
+                        .arg(info.suffix());
     QString filePath = QFileDialog::getSaveFileName(&MAIN, caption, directory, QString(),
-        nullptr, Util::getFileDialogOptions());
+                                                    nullptr, Util::getFileDialogOptions());
     if (!filePath.isEmpty()) {
         if (SpatialMedia::injectSpherical(objectName().toStdString(), filePath.toStdString())) {
             MAIN.showStatusMessage(tr("Successfully wrote %1").arg(QFileInfo(filePath).fileName()));
@@ -137,7 +144,7 @@ void EncodeJob::onFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitStatus != QProcess::NormalExit && exitCode != 0 && !stopped()) {
         LOG_INFO() << "job failed with" << exitCode;
-        appendToLog(QString("Failed with exit code %1\n").arg(exitCode));
+        appendToLog(QStringLiteral("Failed with exit code %1\n").arg(exitCode));
         bool isParallel = false;
         // Parse the XML.
         m_xml->open();

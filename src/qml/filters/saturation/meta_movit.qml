@@ -1,12 +1,15 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Saturation")
+    keywords: qsTr('color desaturate grayscale chroma', 'search keywords for the Saturation video filter') + ' saturation gpu'
     mlt_service: "movit.saturation"
     needsGPU: true
     qml: "ui_movit.qml"
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -15,7 +18,6 @@ Metadata {
             Parameter {
                 name: qsTr('Level')
                 property: 'saturation'
-                isSimple: true
                 isCurve: true
                 minimum: 0
                 maximum: 3

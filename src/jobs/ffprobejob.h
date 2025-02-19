@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2016 Meltytech, LLC
- * Author: Dan Dennedy <dan@dennedy.org>
+ * Copyright (c) 2016-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +25,11 @@ class FfprobeJob : public AbstractJob
 {
     Q_OBJECT
 public:
-    FfprobeJob(const QString& name, const QStringList& args);
+    FfprobeJob(const QString &name, const QStringList &args);
     virtual ~FfprobeJob();
     void start();
 
-private slots:
+protected slots:
     virtual void onFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:

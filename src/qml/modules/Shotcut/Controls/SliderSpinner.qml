@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 Meltytech, LLC
+ * Copyright (c) 2014-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,18 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.1
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.1
-import Shotcut.Controls 1.0 as Shotcut
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Shotcut.Controls as Shotcut
 
 RowLayout {
-    spacing: -3
     property real value
     property alias minimumValue: slider.from
     property alias maximumValue: slider.to
-    property real  ratio: 1.0
+    property real ratio: 1
     property alias label: label.text
     property int decimals: 0
     property alias stepSize: spinner.stepSize
@@ -33,38 +31,46 @@ RowLayout {
     property alias suffix: spinner.suffix
     property alias prefix: spinner.prefix
 
-    SystemPalette { id: activePalette }
-
+    spacing: -3
     onValueChanged: spinner.value = value / ratio
+
+    SystemPalette {
+        id: activePalette
+    }
 
     Slider {
         id: slider
-        stepSize: spinner.stepSize
 
+        property bool isReady: false
+
+        stepSize: spinner.stepSize
         Layout.fillWidth: true
         activeFocusOnTab: false
         wheelEnabled: true
-
-        property bool isReady: false
         Component.onCompleted: {
-            isReady = true
-            value = parent.value
+            isReady = true;
+            value = parent.value;
         }
-        onValueChanged: if (isReady) {
-            spinner.value = value / ratio
-            parent.value = value
+        onValueChanged: {
+            if (isReady) {
+                spinner.value = value / ratio;
+                parent.value = value;
+            }
         }
 
         background: Rectangle {
             radius: 3
             color: activePalette.alternateBase
-            border.color: 'gray'
+            border.color: (value <= maximumValue && value >= minimumValue) ? 'gray' : 'red'
             border.width: 1
             implicitHeight: spinner.height
 
             // Hide the right border.
             Rectangle {
                 visible: !label.visible
+                width: 3
+                color: parent.color
+
                 anchors {
                     top: parent.top
                     right: parent.right
@@ -72,29 +78,24 @@ RowLayout {
                     topMargin: 1
                     bottomMargin: 1
                 }
-                width: 3
-                color: parent.color
             }
 
             // Indicate percentage full.
             Rectangle {
+                radius: parent.radius
+                width: parent.width * (Math.min(Math.max(value, minimumValue), maximumValue) - minimumValue) / (maximumValue - minimumValue) - parent.border.width - (label.visible ? parent.border.width : 3)
+                color: enabled ? activePalette.highlight : activePalette.midlight
+
                 anchors {
                     top: parent.top
                     left: parent.left
                     bottom: parent.bottom
                     margins: 1
                 }
-                radius: parent.radius
-                width: parent.width
-                       * (value - minimumValue) / (maximumValue - minimumValue)
-                       - parent.border.width
-                       - (label.visible? parent.border.width : 3)
-                color: enabled? activePalette.highlight : activePalette.midlight
             }
         }
 
-        handle: Rectangle {
-        }
+        handle: Rectangle {}
     }
 
     // Optional label between slider and spinner
@@ -102,10 +103,13 @@ RowLayout {
         width: 4 - parent.spacing * 2
         visible: label.visible
     }
+
     Label {
         id: label
+
         visible: text.length
     }
+
     Rectangle {
         width: 4 - parent.spacing * 2
         visible: label.visible
@@ -113,6 +117,7 @@ RowLayout {
 
     Shotcut.DoubleSpinBox {
         id: spinner
+
         verticalPadding: 2
         Layout.minimumWidth: background.implicitWidth
         from: slider.from / ratio
@@ -132,6 +137,9 @@ RowLayout {
             // Hide the left border.
             Rectangle {
                 visible: !label.visible
+                width: 3
+                color: parent.color
+
                 anchors {
                     top: parent.top
                     left: parent.left
@@ -139,12 +147,11 @@ RowLayout {
                     topMargin: 1
                     bottomMargin: 1
                 }
-                width: 3
-                color: parent.color
             }
         }
 
         up.indicator: Rectangle {}
+
         down.indicator: Rectangle {}
     }
 }

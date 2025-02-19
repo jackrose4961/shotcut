@@ -27,13 +27,12 @@ DEPLOY=1
 ENABLE_FREI0R=1
 FREI0R_HEAD=1
 FREI0R_REVISION=
-ENABLE_MOVIT=1
 SUBDIRS=
+ENABLE_MOVIT=1
 MOVIT_HEAD=0
-MOVIT_REVISION="origin/shotcut"
-ENABLE_SWH_PLUGINS=0
+MOVIT_REVISION="origin/shotcut-opengl3"
 FFMPEG_HEAD=0
-FFMPEG_REVISION="origin/release/4.4"
+FFMPEG_REVISION="origin/release/7.1"
 FFMPEG_ADDITIONAL_OPTIONS=
 MLT_HEAD=1
 MLT_REVISION=
@@ -42,25 +41,38 @@ SHOTCUT_HEAD=1
 SHOTCUT_REVISION=
 SHOTCUT_VERSION=$(date '+%y.%m.%d')
 ENABLE_BIGSH0T=1
-BIGSH0T_HEAD=1
-BIGSH0T_REVISION=
-ENABLE_ZIMG=1
-ZIMG_HEAD=1
-ZIMG_REVISION=
+BIGSH0T_HEAD=0
+BIGSH0T_REVISION="8fe56f6d4e"
 DAV1D_HEAD=0
-DAV1D_REVISION="0.9.2"
+DAV1D_REVISION="1.5.0"
 AOM_HEAD=0
-AOM_REVISION="v2.0.2"
+AOM_REVISION="v3.11.0"
 ENABLE_VMAF=1
 VMAF_HEAD=0
-VMAF_REVISION="v2.2.0"
-
-
-# QT_INCLUDE_DIR="$(pkg-config --variable=prefix QtCore)/include"
-QT_INCLUDE_DIR=${QTDIR:+${QTDIR}/include}
-# QT_LIB_DIR="$(pkg-config --variable=prefix QtCore)/lib"
-QT_LIB_DIR=${QTDIR:+${QTDIR}/lib}
+VMAF_REVISION="v3.0.0"
+ENABLE_GLAXNIMATE=1
+GLAXNIMATE_HEAD=0
+GLAXNIMATE_REVISION="origin/v0.5.4"
+ENABLE_GOPRO2GPX=1
+ENABLE_OPENCV=1
+OPENCV_HEAD=0
+OPENCV_REVISION="4.10.0"
+ENABLE_LIBSPATIALAUDIO=1
+LIBSPATIALAUDIO_HEAD=1
+LIBSPATIALAUDIO_REVISION=
+ENABLE_LADSPA=1
+LADSPA_HEAD=0
+LADSPA_REVISION="origin/shotcut"
 MLT_DISABLE_SOX=0
+ENABLE_WHISPERCPP=1
+WHISPERCPP_HEAD=1
+WHISPERCPP_REVISION=
+NV_CODEC_REVISION="sdk/12.0"
+
+PYTHON_VERSION=$(python3 --version | awk '{split($2, parts, "."); print parts[1] "." parts[2]}')
+PYTHON_VERSION_DLL=$(python3 --version | awk '{split($2, parts, "."); print parts[1]parts[2]}')
+
+QT_VERSION_X64="6.8.1"
 
 ################################################################################
 # Location of config file - if not overridden on command line
@@ -74,17 +86,6 @@ DEBUG=0
 
 # We need to set LANG to C to avoid e.g. svn from getting to funky
 export LANG=C
-
-# User CFLAGS and LDFLAGS sometimes prevent more recent local headers.
-# Also, you can adjust some flags here.
-if [ "$DEBUG_BUILD" = "1" ]; then
-    export CFLAGS=
-    export CXXFLAGS=
-else
-    export CFLAGS=-DNDEBUG
-    export CXXFLAGS=-DNDEBUG
-fi
-export LDFLAGS=
 
 ################################################################################
 # FUNCTION SECTION
@@ -106,8 +107,9 @@ function usage {
 # Parses the arguments passed in $@ and sets some global vars
 function parse_args {
   CONFIGFILEOPT=""
-  while getopts ":tsc:o:v:" OPT; do
+  while getopts ":tsc:a:o:v:" OPT; do
     case $OPT in
+      a ) TARGET_ARCH=$OPTARG;;
       c ) CONFIGFILEOPT=$OPTARG
           echo Setting configfile to $CONFIGFILEOPT
       ;;
@@ -155,7 +157,7 @@ function to_key {
     shotcut)
       echo 4
     ;;
-    swh-plugins)
+    ladspa-swh)
       echo 5
     ;;
     nv-codec-headers)
@@ -167,7 +169,7 @@ function to_key {
     bigsh0t)
       echo 8
     ;;
-    zimg)
+    whisper.cpp)
       echo 9
     ;;
     dav1d)
@@ -178,6 +180,21 @@ function to_key {
     ;;
     vmaf)
       echo 12
+    ;;
+    glaxnimate)
+      echo 13
+    ;;
+    gopro2gpx)
+      echo 14
+    ;;
+    opencv)
+      echo 15
+    ;;
+    opencv_contrib)
+      echo 16
+    ;;
+    libspatialaudio)
+      echo 17
     ;;
     *)
       echo UNKNOWN
@@ -312,6 +329,31 @@ function read_configuration {
 # This is where the configuration options for each subproject is assembled
 function set_globals {
   trace "Entering set_globals @ = $@"
+
+  # Set debug flags
+  if [ "$DEBUG_BUILD" = "1" ]; then
+    export CFLAGS=
+    export CXXFLAGS=
+  else
+    export CFLAGS=-DNDEBUG
+    export CXXFLAGS=-DNDEBUG
+  fi
+  export LDFLAGS=
+
+  # Set Qt installation variables.
+  test "$TARGET_ARCH" = "" && TARGET_ARCH=${MSYSTEM,,}
+  if [ "$TARGET_ARCH" = "clangarm64" ]; then
+    export QTDIR="$(pkg-config --variable=prefix Qt6Core)"
+    QT_INCLUDE_DIR="$QTDIR/qt6/include"
+    QT_LIB_DIR="$QTDIR/lib"
+    QT_SHARE_DIR="$QTDIR/share/qt6"
+  else
+    export QTDIR="$HOME/Qt/$QT_VERSION_X64/mingw_64"
+    QT_INCLUDE_DIR="$QTDIR/include"
+    QT_LIB_DIR="$QTDIR/lib"
+    QT_SHARE_DIR="$QTDIR"
+  fi
+
   # Set convenience variables.
   if test 1 = "$ACTION_GET" ; then
     GET=1
@@ -334,10 +376,9 @@ function set_globals {
   # Subdirs list, for number of common operations
   # Note, the function to_key depends on this
   if [ -z "$SUBDIRS" ]; then
-    SUBDIRS="aom dav1d AMF nv-codec-headers FFmpeg"
-    if test "$ENABLE_SWH_PLUGINS" = "1"; then
-        SUBDIRS="$SUBDIRS swh-plugins"
-    fi
+    [ "$TARGET_ARCH" = "mingw64" ] && SUBDIRS="AMF nv-codec-headers"
+    SUBDIRS="$SUBDIRS aom dav1d FFmpeg"
+
     if test "$ENABLE_MOVIT" = 1 && test "$MOVIT_HEAD" = 1 -o "$MOVIT_REVISION" != ""; then
         SUBDIRS="$SUBDIRS movit"
     fi
@@ -347,11 +388,26 @@ function set_globals {
     if test "$ENABLE_BIGSH0T" = 1 ; then
         SUBDIRS="$SUBDIRS bigsh0t"
     fi
-    if test "$ENABLE_ZIMG" = 1 ; then
-        SUBDIRS="zimg $SUBDIRS"
-    fi
     if test "$ENABLE_VMAF" = 1 ; then
         SUBDIRS="vmaf $SUBDIRS"
+    fi
+    if test "$ENABLE_GLAXNIMATE" = 1 ; then
+        SUBDIRS="$SUBDIRS glaxnimate"
+    fi
+    if test "$ENABLE_GOPRO2GPX" = 1 ; then
+        SUBDIRS="$SUBDIRS gopro2gpx"
+    fi
+    if test "$ENABLE_OPENCV" = 1 ; then
+        SUBDIRS="opencv opencv_contrib $SUBDIRS"
+    fi
+    if test "$ENABLE_LIBSPATIALAUDIO" = 1  && test "$LIBSPATIALAUDIO_HEAD" = 1 -o "$LIBSPATIALAUDIO_REVISION" != ""; then
+        SUBDIRS="libspatialaudio $SUBDIRS"
+    fi
+    if test "$ENABLE_LADSPA" = 1 && test "$LADSPA_HEAD" = 1 -o "$LADSPA_REVISION" != ""; then
+        SUBDIRS="ladspa-swh $SUBDIRS"
+    fi
+    if test "$ENABLE_WHISPERCPP" = 1  && test "$WHISPERCPP_HEAD" = 1 -o "$WHISPERCPP_REVISION" != ""; then
+        SUBDIRS="whisper.cpp $SUBDIRS"
     fi
     SUBDIRS="$SUBDIRS mlt shotcut"
   fi
@@ -369,30 +425,33 @@ function set_globals {
   if [ "$ASAN_BUILD" = "1" ]; then
     ASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
     ASAN_LDFLAGS="-lasan -fsanitize=address"
-    QMAKE_ASAN_FLAGS="QMAKE_CXXFLAGS+=-fsanitize=address QMAKE_CXXFLAGS+=-fno-omit-frame-pointer QMAKE_LFLAGS+=-fsanitize=address"
   else
     ASAN_CFLAGS=
     ASAN_LDFLAGS=
-    QMAKE_ASAN_FLAGS=
   fi
 
   debug "SUBDIRS = $SUBDIRS"
 
   # REPOLOCS Array holds the repo urls
-  REPOLOCS[0]="git://github.com/FFmpeg/FFmpeg.git"
-  REPOLOCS[1]="git://github.com/mltframework/mlt.git"
-  REPOLOCS[2]="git://github.com/dyne/frei0r.git"
-  REPOLOCS[3]="git://github.com/ddennedy/movit.git"
-  REPOLOCS[4]="git://github.com/mltframework/shotcut.git"
-  REPOLOCS[5]="http://ftp.us.debian.org/debian/pool/main/s/swh-plugins/swh-plugins_0.4.15+1.orig.tar.gz"
-  REPOLOCS[6]="git://github.com/FFmpeg/nv-codec-headers.git"
-  REPOLOCS[7]="git://github.com/GPUOpen-LibrariesAndSDKs/AMF.git"
+  REPOLOCS[0]="https://github.com/FFmpeg/FFmpeg.git"
+  REPOLOCS[1]="https://github.com/mltframework/mlt.git"
+  REPOLOCS[2]="https://github.com/dyne/frei0r.git"
+  REPOLOCS[3]="https://github.com/ddennedy/movit.git"
+  REPOLOCS[4]="https://github.com/mltframework/shotcut.git"
+  REPOLOCS[5]="https://github.com/ddennedy/ladspa-swh.git"
+  REPOLOCS[6]="https://github.com/FFmpeg/nv-codec-headers.git"
+  REPOLOCS[7]="https://github.com/GPUOpen-LibrariesAndSDKs/AMF.git"
 #  REPOLOCS[8]="https://bitbucket.org/dandennedy/bigsh0t.git"
   REPOLOCS[8]="https://bitbucket.org/leo_sutic/bigsh0t.git"
-  REPOLOCS[9]="git://github.com/sekrit-twc/zimg.git"
+  REPOLOCS[9]="https://github.com/ggerganov/whisper.cpp.git"
   REPOLOCS[10]="https://code.videolan.org/videolan/dav1d.git"
   REPOLOCS[11]="https://aomedia.googlesource.com/aom"
-  REPOLOCS[12]="git://github.com/Netflix/vmaf.git"
+  REPOLOCS[12]="https://github.com/Netflix/vmaf.git"
+  REPOLOCS[13]="https://gitlab.com/ddennedy/glaxnimate.git"
+  REPOLOCS[14]="https://github.com/ddennedy/gopro2gpx.git"
+  REPOLOCS[15]="https://github.com/opencv/opencv.git"
+  REPOLOCS[16]="https://github.com/opencv/opencv_contrib.git"
+  REPOLOCS[17]="https://github.com/videolabs/libspatialaudio.git"
 
   # REPOTYPE Array holds the repo types. (Yes, this might be redundant, but easy for me)
   REPOTYPES[0]="git"
@@ -400,7 +459,7 @@ function set_globals {
   REPOTYPES[2]="git"
   REPOTYPES[3]="git"
   REPOTYPES[4]="git"
-  REPOTYPES[5]="http-tgz"
+  REPOTYPES[5]="git"
   REPOTYPES[6]="git"
   REPOTYPES[7]="git"
   REPOTYPES[8]="git"
@@ -408,6 +467,11 @@ function set_globals {
   REPOTYPES[10]="git"
   REPOTYPES[11]="git"
   REPOTYPES[12]="git"
+  REPOTYPES[13]="git"
+  REPOTYPES[14]="git"
+  REPOTYPES[15]="git"
+  REPOTYPES[16]="git"
+  REPOTYPES[17]="git"
 
   # And, set up the revisions
   REVISIONS[0]=""
@@ -430,17 +494,17 @@ function set_globals {
   if test 0 = "$SHOTCUT_HEAD" -a "$SHOTCUT_REVISION" ; then
     REVISIONS[4]="$SHOTCUT_REVISION"
   fi
-  REVISIONS[5]="swh-plugins-0.4.15+1"
-  REVISIONS[6]="sdk/8.1" # nv-codec-headers
+  REVISIONS[5]=""
+  if test 0 = "$LADSPA_HEAD" -a "$LADSPA_REVISION" ; then
+    REVISIONS[5]="$LADSPA_REVISION"
+  fi
+  REVISIONS[6]="$NV_CODEC_REVISION"
   REVISIONS[7]="" # AMF
   REVISIONS[8]=""
   if test 0 = "$BIGSH0T_HEAD" -a "$BIGSH0T_REVISION" ; then
     REVISIONS[8]="$BIGSH0T_REVISION"
   fi
   REVISIONS[9]=""
-  if test 0 = "$ZIMG_HEAD" -a "$ZIMG_REVISION" ; then
-    REVISIONS[9]="$ZIMG_REVISION"
-  fi
   REVISIONS[10]=""
   if test 0 = "$DAV1D_HEAD" -a "$DAV1D_REVISION" ; then
     REVISIONS[10]="$DAV1D_REVISION"
@@ -452,6 +516,23 @@ function set_globals {
   REVISIONS[12]=""
   if test 0 = "$VMAF_HEAD" -a "$VMAF_REVISION" ; then
     REVISIONS[12]="$VMAF_REVISION"
+  fi
+  REVISIONS[13]=""
+  if test 0 = "$GLAXNIMATE_HEAD" -a "$GLAXNIMATE_REVISION" ; then
+    REVISIONS[13]="$GLAXNIMATE_REVISION"
+  fi
+  REVISIONS[14]=""
+  REVISIONS[15]=""
+  if test 0 = "$OPENCV_HEAD" -a "$OPENCV_REVISION" ; then
+    REVISIONS[15]="$OPENCV_REVISION"
+  fi
+  REVISIONS[16]=""
+  if test 0 = "$OPENCV_HEAD" -a "$OPENCV_REVISION" ; then
+    REVISIONS[16]="$OPENCV_REVISION"
+  fi
+  REVISIONS[17]=""
+  if test 0 = "$LIBSPATIALAUDIO_HEAD" -a "$LIBSPATIALAUDIO_REVISION" ; then
+    REVISIONS[17]="$LIBSPATIALAUDIO_REVISION_REVISION"
   fi
 
   # Figure out the number of cores in the system. Used both by make and startup script
@@ -474,7 +555,6 @@ function set_globals {
 
   # set global environment for all jobs
   alias make=mingw32-make
-  export QTDIR="$HOME/Qt/5.15.2/mingw81_64"
   export PKG_CONFIG_PATH="$HOME/lib/pkgconfig:$PKG_CONFIG_PATH"
   export PATH="$FINAL_INSTALL_DIR/bin:$PATH"
   export LD_RUN_PATH="$FINAL_INSTALL_DIR/lib"
@@ -487,48 +567,62 @@ function set_globals {
   #####
   # ffmpeg
   CONFIG[0]="./configure --prefix=$FINAL_INSTALL_DIR --disable-static --disable-doc --enable-gpl --enable-version3 --enable-shared --enable-runtime-cpudetect $CONFIGURE_DEBUG_FLAG"
-  CONFIG[0]="${CONFIG[0]} --enable-libtheora --enable-libvorbis --enable-libmp3lame --enable-libx264 --enable-libx265 --enable-libvpx --enable-libopus --enable-libmfx --enable-libdav1d --enable-libaom --disable-decoder=libaom_av1 --enable-libwebp"
+  CONFIG[0]="${CONFIG[0]} --enable-libtheora --enable-libvorbis --enable-libmp3lame --enable-libx264 --enable-libx265 --enable-libvpx --enable-libopus --enable-libvpl --enable-libdav1d --enable-libaom --disable-decoder=libaom_av1 --enable-libsvtav1 --enable-libwebp --enable-libzimg --disable-vulkan --disable-vaapi"
+  [ "$TARGET_ARCH" = "clangarm64" ] && CONFIG[0]="${CONFIG[0]} --cc=clang --cxx=clang++ --arch=aarch64"
   # Add optional parameters
-  if [ "$ENABLE_ZIMG" = "1" ]; then
-    CONFIG[0]="${CONFIG[0]} --enable-libzimg"
-  fi
   if [ "$ENABLE_VMAF" = "1" ]; then
-    CONFIG[0]="${CONFIG[0]} --enable-libvmaf"
+    CONFIG[0]="${CONFIG[0]} --enable-libvmaf --disable-w32threads"
   fi
   CONFIG[0]="${CONFIG[0]} $FFMPEG_ADDITIONAL_OPTIONS"
-  CFLAGS_[0]="-I$FINAL_INSTALL_DIR/include $CFLAGS"
+  CFLAGS_[0]="-I$FINAL_INSTALL_DIR/include  -Wno-incompatible-pointer-types $CFLAGS"
 
   #####
   # mlt
-  CONFIG[1]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_PREFIX_PATH=$QTDIR -DGPL=ON -DGPL3=ON -DMOD_GDK=OFF -DMOD_SDL1=OFF $CMAKE_DEBUG_FLAG"
+  CONFIG[1]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_PREFIX_PATH=$QTDIR -DMOD_GDK=OFF -DMOD_GLAXNIMATE_QT6=ON -DMOD_QT=OFF -DMOD_QT6=ON -DMOD_SDL1=OFF -DUSE_VST2=OFF"
+  [ "$ENABLE_OPENCV" = "1" ] && CONFIG[1]="${CONFIG[1]} -DMOD_OPENCV=ON"
+  if [ "$DEBUG_BUILD" = "1" ]; then
+    CONFIG[1]="${CONFIG[1]} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+  else
+    CONFIG[1]="${CONFIG[1]} -DCMAKE_BUILD_TYPE=Release"
+  fi
   CFLAGS_[1]="-I$FINAL_INSTALL_DIR/include $ASAN_CFLAGS $CFLAGS"
-  LDFLAGS_[1]="${LDFLAGS_[1]} -L$FINAL_INSTALL_DIR/lib $ASAN_LDFLAGS $LDFLAGS"
+  CXXFLAGS_[1]="${CFLAGS_[1]} -std=c++11 -D_XOPEN_SOURCE=700"
+  LDFLAGS_[1]="-L$FINAL_INSTALL_DIR/lib $ASAN_LDFLAGS $LDFLAGS"
+  BUILD[1]="ninja -j $MAKEJ"
+  INSTALL[1]="ninja install"
 
-  ####
+  #####
   # frei0r
   CONFIG[2]="cmake -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DWITHOUT_GAVL=1 -DWITHOUT_OPENCV=1 -GNinja $CMAKE_DEBUG_FLAG"
-  CFLAGS_[2]="$CFLAGS -O2"
+  CFLAGS_[2]="$CFLAGS"
   LDFLAGS_[2]=$LDFLAGS
+  BUILD[2]="ninja -j $MAKEJ"
+  INSTALL[2]="ninja install"
 
   #####
   # movit
   CONFIG[3]="./autogen.sh --prefix=$FINAL_INSTALL_DIR"
   # MinGW does not provide ffs(), but there is a gcc intrinsic for it.
-  CFLAGS_[3]="$CFLAGS -Dffs=__builtin_ffs"
-  CFLAGS_[3]="${CFLAGS_[3]} -fpermissive"
+  CFLAGS_[3]="$CFLAGS -Dffs=__builtin_ffs -fpermissive"
+  CXXFLAGS_[3]="${CFLAGS_[3]}"
   LDFLAGS_[3]=$LDFLAGS
+  BUILD[3]="make -j$MAKEJ libmovit.la"
 
   #####
   # shotcut
-  CONFIG[4]="$QTDIR/bin/qmake -r MLT_PATH=$FINAL_INSTALL_DIR PREFIX=$FINAL_INSTALL_DIR SHOTCUT_VERSION=$SHOTCUT_VERSION $QMAKE_DEBUG_FLAG $QMAKE_ASAN_FLAGS"
-  CFLAGS_[4]=$CFLAGS
-  LDFLAGS_[4]=$LDFLAGS
+  CONFIG[4]="cmake -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_PREFIX_PATH=$QTDIR -D SHOTCUT_VERSION=$SHOTCUT_VERSION $CMAKE_DEBUG_FLAG"
+  CFLAGS_[4]="$ASAN_CFLAGS $CFLAGS"
+  LDFLAGS_[4]="$ASAN_LDFLAGS $LDFLAGS"
+  BUILD[4]="ninja -j $MAKEJ"
+  INSTALL[4]="install_shotcut"
 
   #####
-  # swh-plugins
-  CONFIG[5]="./configure --prefix=$FINAL_INSTALL_DIR --enable-sse"
+  # ladspa-swh
+  CONFIG[5]="./autogen.sh --prefix=$FINAL_INSTALL_DIR --disable-nls"
   CFLAGS_[5]=$CFLAGS
   LDFLAGS_[5]=$LDFLAGS
+  BUILD[5]="make -j $MAKEJ LDFLAGS=-no-undefined"
+  INSTALL[5]="install_ladspa-swh"
 
   #######
   # nv-codec-headers
@@ -537,18 +631,23 @@ function set_globals {
   #######
   # AMF - no build required
   CONFIG[7]=""
+  [ ! -d "$FINAL_INSTALL_DIR/include/AMF" ] && INSTALL[7]="install_amf"
 
   #########
   # bigsh0t
   CONFIG[8]="cmake -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -GNinja $CMAKE_DEBUG_FLAG"
   CFLAGS_[8]=$CFLAGS
   LDFLAGS_[8]=$LDFLAGS
+  BUILD[8]="ninja -j $MAKEJ"
+  INSTALL[8]="install -p -c *.dll "$FINAL_INSTALL_DIR"/lib/frei0r-1"
 
   #####
-  # zimg
-  CONFIG[9]="./configure --prefix=$FINAL_INSTALL_DIR"
+  # whisper.cpp
+  CONFIG[9]="cmake -B build -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG -D GGML_AVX2=OFF -D GGML_BLAS=ON -D GGML_BLAS_VENDOR=OpenBLAS -D BUILD_SHARED_LIBS=ON -D GGML_NATIVE=OFF -D WHISPER_BUILD_SERVER=OFF -D WHISPER_BUILD_TESTS=OFF"
   CFLAGS_[9]=$CFLAGS
   LDFLAGS_[9]=$LDFLAGS
+  BUILD[9]="ninja -C build -j $MAKEJ"
+  INSTALL[9]="install_whispercpp"
 
   #####
   # dav1d
@@ -560,6 +659,8 @@ function set_globals {
   fi
   CFLAGS_[10]=$CFLAGS
   LDFLAGS_[10]=$LDFLAGS
+  BUILD[10]="build_dav1d"
+  INSTALL[10]="meson install -C builddir"
 
   #####
   # aom
@@ -567,6 +668,8 @@ function set_globals {
   CONFIG[11]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG -DBUILD_SHARED_LIBS=1 -DCONFIG_AV1_DECODER=0 -DENABLE_EXAMPLES=0 -DENABLE_TESTS=0 ../aom"
   CFLAGS_[11]=$CFLAGS
   LDFLAGS_[11]=$LDFLAGS
+  BUILD[11]="ninja -j $MAKEJ"
+  INSTALL[11]="ninja install"
 
   #####
   # vmaf
@@ -576,8 +679,100 @@ function set_globals {
   else
     CONFIG[12]="${CONFIG[12]} --buildtype=release"
   fi
-  CFLAGS_[12]=$CFLAGS
-  LDFLAGS_[12]=$LDFLAGS
+  CFLAGS_[12]="$CFLAGS"
+  [ "$TARGET_ARCH" = "clangarm64" ] && LDFLAGS_[12]="$LDFLAGS -lwinpthread"
+  BUILD[12]="ninja -C libvmaf/build -j $MAKEJ"
+  INSTALL[12]="install_vmaf"
+
+  #####
+  # glaxnimate
+  CONFIG[13]="cmake -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -D Python3_FIND_REGISTRY=NEVER"
+  if [ "$TARGET_ARCH" = "clangarm64" ]; then
+    CONFIG[13]="${CONFIG[13]} -D CMAKE_PREFIX_PATH=$FINAL_INSTALL_DIR"
+  else
+    CONFIG[13]="${CONFIG[13]} -D CMAKE_PREFIX_PATH=$QTDIR"
+  fi
+  if [ "$DEBUG_BUILD" = "1" ]; then
+    CONFIG[13]="${CONFIG[13]} -D CMAKE_BUILD_TYPE=RelWithDebInfo"
+  else
+    CONFIG[13]="${CONFIG[13]} -D CMAKE_BUILD_TYPE=Release"
+  fi
+  CFLAGS_[13]="$ASAN_CFLAGS $CFLAGS"
+  LDFLAGS_[13]="$ASAN_LDFLAGS $LDFLAGS"
+  BUILD[13]="ninja -j $MAKEJ"
+  INSTALL[13]="ninja translations install"
+
+  #####
+  # gopro2gpx
+  CONFIG[14]="cmake -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  CFLAGS_[14]="$CFLAGS"
+  LDFLAGS_[14]="$LDFLAGS"
+  BUILD[14]="ninja -j $MAKEJ"
+  INSTALL[14]="install -p -c gopro2gpx $FINAL_INSTALL_DIR"
+
+  #####
+  # opencv
+  CONFIG[15]="cmake -B build -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -D BUILD_LIST=tracking -D OPENCV_GENERATE_PKGCONFIG=YES -D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules -D WITH_OPENMP=ON $CMAKE_DEBUG_FLAG"
+  CFLAGS_[15]="$CFLAGS"
+  LDFLAGS_[15]="$LDFLAGS"
+  BUILD[15]="build_opencv"
+  INSTALL[15]="ninja -C build install"
+
+  #####
+  # libspatialaudio
+  CONFIG[17]="cmake -G Ninja -B build -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  CFLAGS_[17]="$CFLAGS"
+  LDFLAGS_[17]="$LDFLAGS"
+  BUILD[17]="ninja -C build -j $MAKEJ"
+  INSTALL[17]="install_spatialaudio"
+}
+
+function build_dav1d {
+  # dav1d frequently fails on Windows on generate symbol file
+  cmd ninja -C builddir -j $MAKEJ || cmd ninja -C builddir -j $MAKEJ
+}
+
+function build_opencv {
+  [ grep M_PI 3rdparty/carotene/include/carotene/definitions.hpp ] || printf >>3rdparty/carotene/include/carotene/definitions.hpp '#ifndef M_PI\n#define M_PI (3.14159265358979323846)\n#endif'
+  cmd ninja -C build -j $MAKEJ
+}
+
+function install_amf {
+  cmd rm -rf Thirdparty
+  cmd mkdir -p "$FINAL_INSTALL_DIR/include/AMF"
+  cmd cp -av "amf/public/include/." "$FINAL_INSTALL_DIR/include/AMF"
+}
+
+function install_shotcut {
+  cmd ninja install
+  cmd install -c COPYING "$FINAL_INSTALL_DIR"
+  cmd install -c packaging/windows/shotcut.iss "$FINAL_INSTALL_DIR"/..
+  cmd sed -i "s/YY.MM.DD/$SHOTCUT_VERSION/" "$FINAL_INSTALL_DIR"/../shotcut.iss
+  cmd install -d "$FINAL_INSTALL_DIR"/share/translations
+  cmd install -p -c translations/*.qm "$FINAL_INSTALL_DIR"/share/translations
+}
+
+function install_ladspa-swh {
+  cmd install -d "$FINAL_INSTALL_DIR"/lib/ladspa
+  cmd install -p -c .libs/*.dll "$FINAL_INSTALL_DIR"/lib/ladspa
+}
+
+function install_vmaf {
+  cmd ninja install -C libvmaf/build || die "Unable to install $1"
+  cmd install -d "$FINAL_INSTALL_DIR"/share/vmaf
+  cmd install -p -c model/*.json "$FINAL_INSTALL_DIR"/share/vmaf || die "Unable to install $1"
+}
+
+function install_spatialaudio {
+  cmd ninja -C build install || die "Unable to install $1"
+  cmd sed -i "s,-I/${TARGET_ARCH}/include,," "$FINAL_INSTALL_DIR"/lib/pkgconfig/spatialaudio.pc
+}
+
+function install_whispercpp {
+  cmd ninja -C build install
+  cmd install -p -c build/bin/whisper-cli.exe $FINAL_INSTALL_DIR/bin
+  cmd mkdir -p $FINAL_INSTALL_DIR/share/shotcut/whisper_models
+  cmd install -p -c models/ggml-base-q5_1.bin $FINAL_INSTALL_DIR/share/shotcut/whisper_models
 }
 
 ######################################################################
@@ -691,7 +886,7 @@ function get_subproject {
   feedback_status Getting or updating source for $1 - this could take some time
   cmd pushd .
 
-  # Check for repository setyp
+  # Check for repository setup
   REPOTYPE=`lookup REPOTYPES $1`
   REPOLOC=`lookup REPOLOCS $1`
   REVISION=`lookup REVISIONS $1`
@@ -727,9 +922,10 @@ function get_subproject {
           # No git repo
           debug "No git repo, need to check out"
           feedback_status "Cloning git sources for $1"
-          cmd git --no-pager clone --quiet $REPOLOC || die "Unable to git clone source for $1 from $REPOLOC"
+          cmd git --no-pager clone --quiet --recurse-submodules $REPOLOC || die "Unable to git clone source for $1 from $REPOLOC"
           cmd cd $1 || die "Unable to change to directory $1"
-          cmd git checkout $REVISION || die "Unable to git checkout $REVISION"
+          cmd git checkout --recurse-submodules $REVISION || die "Unable to git checkout $REVISION"
+          [ "$SDK" = "1" -a "shotcut" != "$1" -a "mlt" != "$1" ] && cmd rm -rf .git
       fi
   elif test "svn" = "$REPOTYPE" ; then
       # Create subdir if not exist
@@ -782,6 +978,10 @@ function get_subproject {
       fi
       cmd cd $1 || die "Unable to change to directory $1"
   fi # git/svn
+
+  if [ "$1" = "whisper.cpp" ]; then
+    cmd sh ./models/download-ggml-model.sh base-q5_1
+  fi
 
   feedback_status Done getting or updating source for $1
   cmd popd
@@ -844,8 +1044,15 @@ function configure_compile_install_subproject {
   log PKG_CONFIG_PATH=$PKG_CONFIG_PATH
   export CFLAGS=`lookup CFLAGS_ $1`
   log CFLAGS=$CFLAGS
+  export CXXFLAGS=`lookup CXXFLAGS_ $1`
+  log CXXFLAGS=$CFLAGS
   export LDFLAGS=`lookup LDFLAGS_ $1`
   log LDFLAGS=$LDFLAGS
+
+  MYPRECONFIG=`lookup PRECONFIG $1`
+  MYCONFIG=`lookup CONFIG $1`
+  MYBUILD=`lookup BUILD $1`
+  MYINSTALL=`lookup INSTALL $1`
 
   # Configure
   if [ "$ACTION_CONFIGURE" = "1" ]; then
@@ -853,31 +1060,9 @@ function configure_compile_install_subproject {
   # Configure
   feedback_status Configuring $1
 
-  # Special hack for mlt
-  if test "mlt" = "$1"; then
-    export CXXFLAGS="$CFLAGS -std=c++11"
-  fi
-
-  # Special hack for movit
-  if test "movit" = "$1"; then
-#    export PATH="$HOME/mingw810_64/bin:$PATH"
-    export CXXFLAGS="$CFLAGS"
-  fi
-
-  # Special hack for AMF
-  if test "AMF" = "$1" -a ! -d "$FINAL_INSTALL_DIR/include/AMF"; then
-    cmd rm -rf Thirdparty
-    cmd mkdir -p "$FINAL_INSTALL_DIR/include/AMF"
-    cmd cp -av "amf/public/include/." "$FINAL_INSTALL_DIR/include/AMF"
-  fi
-
-  # Special hack for zimg
-  if test "zimg" = "$1" -a ! -e configure ; then
-    debug "Need to create configure for $1"
-    cmd ./autogen.sh || die "Unable to create configure file for $1"
-    if test ! -e configure ; then
-      die "Unable to confirm presence of configure file for $1"
-    fi
+  if test "$MYPRECONFIG" != ""; then
+    cmd $MYPRECONFIG || die "Unable to pre-configure $1"
+    feedback_status Done pre-configuring $1
   fi
 
   # Special hack for aom
@@ -886,7 +1071,6 @@ function configure_compile_install_subproject {
     cmd cd ../build-aom || die "Unable to change to directory aom/builddir"
   fi
 
-  MYCONFIG=`lookup CONFIG $1`
   if test "$MYCONFIG" != ""; then
     cmd $MYCONFIG || die "Unable to configure $1"
     feedback_status Done configuring $1
@@ -896,14 +1080,8 @@ function configure_compile_install_subproject {
 
   # Compile
   feedback_status Building $1 - this could take some time
-  if test "movit" = "$1" ; then
-    cmd make -j$MAKEJ libmovit.la || die "Unable to build $1"
-  elif test "frei0r" = "$1" -o "bigsh0t" = "$1" -o "aom" = "$1" -o "mlt" = "$1"; then
-    cmd ninja -j $MAKEJ || die "Unable to build $1"
-  elif test "dav1d" = "$1"; then
-    cmd ninja -C builddir -j $MAKEJ || die "Unable to build $1"
-  elif test "vmaf" = "$1"; then
-    cmd ninja -C libvmaf/build -j $MAKEJ || die "Unable to build $1"
+  if test "$MYBUILD" != ""; then
+    cmd $MYBUILD || die "Unable to build $1"
   elif test "$MYCONFIG" != ""; then
     cmd make -j$MAKEJ || die "Unable to build $1"
   fi
@@ -913,26 +1091,8 @@ function configure_compile_install_subproject {
   feedback_status Installing $1
   export LD_LIBRARY_PATH=`lookup LD_LIBRARY_PATH_ $1`
   log "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
-  if test "shotcut" = "$1" ; then
-    cmd make install
-    cmd install -c -m 755 src/shotcut.exe "$FINAL_INSTALL_DIR"
-    cmd install -c COPYING "$FINAL_INSTALL_DIR"
-    cmd install -c packaging/windows/shotcut.nsi "$FINAL_INSTALL_DIR"/..
-    cmd sed -i "s/YY.MM.DD/$SHOTCUT_VERSION/" "$FINAL_INSTALL_DIR"/../shotcut.nsi
-    cmd install -d "$FINAL_INSTALL_DIR"/share/translations
-    cmd install -p -c translations/*.qm "$FINAL_INSTALL_DIR"/share/translations
-    cmd install -d "$FINAL_INSTALL_DIR"/share/shotcut
-    cmd cp -a src/qml "$FINAL_INSTALL_DIR"/share/shotcut
-  elif test "frei0r" = "$1" -o "aom" = "$1" -o "mlt" = "$1"; then
-    cmd ninja install || die "Unable to install $1"
-  elif test "bigsh0t" = "$1" ; then
-    cmd install -p -c *.dll "$FINAL_INSTALL_DIR"/lib/frei0r-1  || die "Unable to install $1"
-  elif test "dav1d" = "$1"; then
-    cmd meson install -C builddir || die "Unable to install $1"
-  elif test "vmaf" = "$1"; then
-    cmd ninja install -C libvmaf/build || die "Unable to install $1"
-    cmd install -d "$FINAL_INSTALL_DIR"/share/vmaf
-    cmd install -p -c model/*.json "$FINAL_INSTALL_DIR"/share/vmaf || die "Unable to install $1"
+  if test "$MYINSTALL" != "" ; then
+    cmd $MYINSTALL || die "Unable to install $1"
   elif test "$MYCONFIG" != "" ; then
     cmd make install || die "Unable to install $1"
   fi
@@ -1002,17 +1162,6 @@ function sys_info {
   uname -a
   echo Information about cc at the time of compilation:
   LANG=C cc -v 2>&1
-  if which dpkg ; then
-    echo Found dpkg - running dpkg -l to grep libc6
-    dpkg -l | grep libc6
-  else
-    if which rpm ; then
-      echo Found rpm - running rpm -qa to grep libc6
-      rpm -qa | grep libc
-    else
-      echo Found neither dpkg or rpm...
-    fi
-  fi
 }
 
 
@@ -1023,7 +1172,7 @@ function bundle_dlls
   log bundling library dependencies of $(basename "$1")
   target=$(dirname "$1")/$(basename "$1")
   basename_target=$(basename "$target")
-  libs=$(ldd "$target" | awk '($3 ~ /\/mingw64\/bin\//) {print $3}')
+  libs=$(ldd "$target" | awk "(\$3 ~ /\/$TARGET_ARCH\/bin\//) {print \$3}")
   for lib in $libs; do
     basename_lib=$(basename "$lib")
     if [ "$basename_lib" != "$basename_target" ]; then
@@ -1054,34 +1203,33 @@ function deploy
   log Reorganizing installed files
   cmd mv bin/*.dll .
   cmd mv lib/libaom.dll .
+  cmd mv lib/libCuteLogger.dll .
   if [ "$SDK" = "1" ]; then
     cmd mv bin/*.exe .
+    # OpenCV installs binaries to a weird place
+    cmd mv {x64,x86}/mingw/bin/*.dll .
   else
     cmd mv bin/ffmpeg.exe .
     cmd mv bin/ffplay.exe .
     cmd mv bin/ffprobe.exe .
+    cmd mv bin/glaxnimate.exe .
+    cmd mv bin/whisper-cli.exe .
     cmd rm -rf bin include etc man manifest src *.txt
     cmd rm lib/*
     cmd rm -rf lib/cmake lib/pkgconfig lib/gdk-pixbuf-2.0 lib/glib-2.0 lib/gtk-2.0
     cmd rm -rf share/doc share/man share/ffmpeg/examples share/aclocal share/glib-2.0 share/gtk-2.0 share/gtk-doc share/themes share/locale
+    # OpenCV installs binaries to a weird place
+    cmd mv {x64,x86}/mingw/bin/*.dll .
+    cmd rm -rf {x64,x86}
+    cmd rm OpenCVConfig*
+    cmd rm setup_vars_opencv4.cmd
   fi
   cmd mv COPYING COPYING.txt
 
   log Copying some libs from Qt
   if [ "$DEBUG_BUILD" != "1" -o "$SDK" = "1" ]; then
-    cmd cp -p "$QTDIR"/bin/Qt5{Core,Gui,Multimedia,Network,OpenGL,Qml,QmlModels,QmlWorkerScript,Quick,QuickControls2,QuickTemplates2,QuickWidgets,Sql,Svg,WebSockets,Widgets,WinExtras,Xml}.dll .
+    cmd cp -p "$QTDIR"/bin/Qt6{Charts,Core,Core5Compat,Gui,Multimedia,Network,OpenGL,OpenGLWidgets,Qml,QmlMeta,QmlModels,QmlWorkerScript,Quick,QuickControls2*,QuickDialogs2,QuickDialogs2QuickImpl,QuickDialogs2Utils,QuickLayouts,QuickTemplates2,QuickWidgets,Sql,Svg,SvgWidgets,UiTools,Widgets,Xml}.dll .
   fi
-  if [ "$DEBUG_BUILD" = "1" -o "$SDK" = "1" ]; then
-    cmd cp -p "$QTDIR"/bin/Qt5{Core,Gui,Multimedia,Network,OpenGL,Qml,QmlModels,QmlWorkerScript,Quick,QuickControls2,QuickTemplates2,QuickWidgets,Sql,Svg,WebSockets,Widgets,WinExtras,Xml}d.dll .
-  fi
-
-  if [ "ENABLE_SWH_PLUGINS" != "1" ]; then
-    log Copying LADSPA plugins
-    cmd tar -xJf "$HOME/swh-plugins-win64-0.4.15.tar.xz"
-  fi
-
-  log Copying some libs from mlt-prebuilt
-  cmd cp -p /mingw64/bin/.dll
 
   for lib in *.dll; do
     bundle_dlls "$lib"
@@ -1089,118 +1237,79 @@ function deploy
   for lib in lib/{frei0r-1,ladspa,mlt}/*.dll; do
     bundle_dlls "$lib"
   done
-  cmd rm *.bundled
+  bundle_dlls glaxnimate.exe
+  # for good measure
+  for lib in $(find -name '*.dll' -or -name '*.exe'); do
+    bundle_dlls "$lib"
+  done
 
+  log Copying some DLLs and python libraries for Glaxnimate
+  cmd cp -p /${TARGET_ARCH}/bin/libpython${PYTHON_VERSION}.dll python${PYTHON_VERSION_DLL}.dll
+  cmd cp -p "$SOURCE_DIR"/glaxnimate/external/Qt-Color-Widgets/libQtColorWidgets.dll .
+  cmd mkdir -p share/glaxnimate/glaxnimate/pythonhome/lib/python
+  cmd cp -r /${TARGET_ARCH}/lib/python${PYTHON_VERSION}/*.py \
+            /${TARGET_ARCH}/lib/python${PYTHON_VERSION}/lib-dynload/* \
+            /${TARGET_ARCH}/lib/python${PYTHON_VERSION}/{json,collections,encodings,logging,urllib} \
+      share/glaxnimate/glaxnimate/pythonhome/lib/python
+
+  log Copying some libs from mlt-prebuilt
   cmd cp -p "$HOME"/bin/*.dll .
-  cmd cp -p "$QTDIR"/bin/{libEGL,libGLESv2,d3dcompiler_47}.dll .
+  cmd cp -p "$QTDIR"/bin/d3dcompiler_47.dll .
 
   log Copying some libs from msys2
-  cmd cp -p /mingw64/bin/{libcrypto-1_1-x64,libssl-1_1-x64}.dll .
+  cmd cp -p /${TARGET_ARCH}/bin/libcrypto-3.dll .
+  if [ "$TARGET_ARCH" = "clangarm64" ]; then
+    cmd cp -p /${TARGET_ARCH}/bin/{libjasper.dll,libjpeg-8.dll,libmng-2.dll,liblcms2-2.dll,libtiff-6.dll,libjbig-0.dll,libdeflate.dll,libLerc.dll,libunwind.dll,libwebpdemux-2.dll,libcairo-2.dll,libfontconfig-1.dll,libpixman-1-0.dll,libxml2-2.dll,libomp.dll,libebur128.dll,libsamplerate-0.dll,librubberband-2.dll,libsox-3.dll,libopencore-amrnb-0.dll,libvo-amrwbenc-0.dll,libFLAC.dll,libltdl-7.dll,libgsm.dll,libmad-0.dll,libao-4.dll,libid3tag-0.dll,libtwolame-0.dll,libvorbisfile-3.dll,libwavpack-1.dll,libsndfile-1.dll,libopencore-amrwb-0.dll,libmpg123-0.dll,libopusfile-0.dll,libmysofa.dll,libvidstab.dll,libexpat-1.dll,liblz4.dll,libfftw3f-3.dll} .
+  fi
   if [ "$DEBUG_BUILD" = "1" -o "$SDK" = "1" ]; then
-    cmd cp -p "$SOURCE_DIR"/shotcut/drmingw/x64/bin/*.{dll,yes} .
+    [ "$TARGET_ARCH" != "clangarm64" ] && cmd cp -p "$SOURCE_DIR"/shotcut/drmingw/x64/bin/*.{dll,yes} .
+    cmd cp -p /${TARGET_ARCH}/bin/libfftw3*.dll bin/
+    cmd cp -p /${TARGET_ARCH}/lib/libfftw3*.a lib/
+    cmd cp -p /${TARGET_ARCH}/include/fftw3* include/
+    cmd cp -p /${TARGET_ARCH}/lib/pkgconfig/fftw3*.pc lib/pkgconfig/
+#    cmd mkdir -p lib/cmake/fftw3 lib/cmake/fftw3f lib/cmake/fftw3l lib/cmake/fftw3q
+#    cmd cp -p /${TARGET_ARCH}/lib/cmake/fftw3/*.cmake lib/cmake/fftw3/
+#    cmd cp -p /${TARGET_ARCH}/lib/cmake/fftw3f/*.cmake lib/cmake/fftw3f/
+#    cmd cp -p /${TARGET_ARCH}/lib/cmake/fftw3l/*.cmake lib/cmake/fftw3l/
+#    cmd cp -p /${TARGET_ARCH}/lib/cmake/fftw3q/*.cmake lib/cmake/fftw3q/
   fi
 
   log Copying some plugins, qml, and translations from Qt
-  cmd mkdir -p lib/qt5/sqldrivers
-  cmd cp -pr "$QTDIR"/plugins/{audio,generic,iconengines,imageformats,mediaservice,platforms,sqldrivers,styles} lib/qt5
-  cmd cp -pr "$QTDIR"/qml lib
-  sed -i "s/onClicked()/onClicked(mouse)/" lib/qml/QtQuick/Controls/Private/EditMenu_base.qml
-  cmd rm lib/qml/QtQuick/Controls/Private/EditMenu_base.qmlc
-  cmd cp -pr "$QTDIR"/translations/qt_*.qm share/translations
-  cmd cp -pr "$QTDIR"/translations/qtbase_*.qm share/translations
+  cmd mkdir -p lib/qt6/generic
+  for plugin in generic iconengines imageformats multimedia platforms sqldrivers styles tls; do
+    cmd cp -pr "$QT_SHARE_DIR"/plugins/${plugin} lib/qt6
+    cmd rm lib/qt6/${plugin}/*.debug 2>/dev/null
+    cmd rm lib/qt6/multimedia/ffmpegmediaplugin.dll 2>/dev/null
+    cmd rm lib/qt6/tls/qcertonlybackend.dll 2>/dev/null
+    cmd rm lib/qt6/tls/qopensslbackend.dll 2>/dev/null
+    for lib in lib/qt6/${plugin}/*.dll; do
+      bundle_dlls "$lib"
+    done
+  done
+  cmd mkdir -p lib/qml
+  cmd cp -pr "$QT_SHARE_DIR"/qml/{Qt,QtCore,QtQml,QtQuick} lib/qml
+  cmd cp -pr "$QT_SHARE_DIR"/translations/qt_*.qm share/translations
+  cmd cp -pr "$QT_SHARE_DIR"/translations/qtbase_*.qm share/translations
 
   log Removing things not needed
-  cmd rm lib/qt5/sqldrivers/{qsqlodbc,qsqlodbcd,qsqlpsql,qsqlpsqld}.dll
+  cmd rm *.bundled
+  cmd rm lib/qt6/sqldrivers/{qsqlodbc,qsqlpsql}.dll
   # colortap is not used by Shotcut and no plans to include it, but
   # Kaspersky antivirus is flagging it and scaring people.
   cmd rm lib/frei0r-1/colortap.dll
-  if [ "$DEBUG_BUILD" != "1" -a "$SDK" != "1" ]; then
-    cmd rm lib/qt5/audio/qtaudio_windowsd.dll
-    cmd rm lib/qt5/generic/qtuiotouchplugind.dll
-    cmd rm lib/qt5/iconengines/qsvgicond.dll
-    cmd rm lib/qt5/imageformats/qddsd.dll
-    cmd rm lib/qt5/imageformats/qgifd.dll
-    cmd rm lib/qt5/imageformats/qicod.dll
-    cmd rm lib/qt5/imageformats/qicnsd.dll
-    cmd rm lib/qt5/imageformats/qjpegd.dll
-    cmd rm lib/qt5/imageformats/qsvgd.dll
-    cmd rm lib/qt5/imageformats/qtgad.dll
-    cmd rm lib/qt5/imageformats/qtiffd.dll
-    cmd rm lib/qt5/imageformats/qwbmpd.dll
-    cmd rm lib/qt5/imageformats/qwebpd.dll
-    cmd rm lib/qt5/mediaservice/dsengined.dll
-    cmd rm lib/qt5/mediaservice/qtmedia_audioengined.dll
-    cmd rm lib/qt5/platforms/qminimald.dll
-    cmd rm lib/qt5/platforms/qoffscreend.dll
-    cmd rm lib/qt5/platforms/qwindowsd.dll
-    cmd rm lib/qt5/sqldrivers/qsqlited.dll
-
-    cmd rm lib/qml/QtLocation/declarative_locationd.dll
-    cmd rm lib/qml/QtQml/StateMachine/qtqmlstatemachined.dll
-    cmd rm lib/qml/QtQml/Models.2/modelsplugind.dll
-    cmd rm lib/qml/QtCanvas3D/qtcanvas3dd.dll
-    cmd rm lib/qml/QtPositioning/declarative_positioningd.dll
-    cmd rm lib/qml/QtWinExtras/qml_winextrasd.dll
-    cmd rm lib/qml/QtQuick.2/qtquick2plugind.dll
-    cmd rm lib/qml/Qt/labs/settings/qmlsettingsplugind.dll
-    cmd rm lib/qml/Qt/labs/folderlistmodel/qmlfolderlistmodelplugind.dll
-    cmd rm lib/qml/QtWebSockets/declarative_qmlwebsocketsd.dll
-    cmd rm lib/qml/QtBluetooth/declarative_bluetoothd.dll
-    cmd rm lib/qml/QtTest/qmltestplugind.dll
-    cmd rm lib/qml/QtQuick/LocalStorage/qmllocalstorageplugind.dll
-    cmd rm lib/qml/QtQuick/Window.2/windowplugind.dll
-    cmd rm lib/qml/QtQuick/Dialogs/dialogplugind.dll
-    cmd rm lib/qml/QtQuick/Dialogs/Private/dialogsprivateplugind.dll
-    cmd rm lib/qml/QtQuick/PrivateWidgets/widgetsplugind.dll
-    cmd rm lib/qml/QtQuick/Layouts/qquicklayoutsplugind.dll
-    cmd rm lib/qml/QtQuick/Controls/qtquickcontrolsplugind.dll
-    cmd rm lib/qml/QtQuick/Controls/Styles/Flat/qtquickextrasflatplugind.dll
-    cmd rm lib/qml/QtQuick/Particles.2/particlesplugind.dll
-    cmd rm lib/qml/QtQuick/Extras/qtquickextrasplugind.dll
-    cmd rm lib/qml/QtQuick/XmlListModel/qmlxmllistmodelplugind.dll
-    cmd rm lib/qml/QtSensors/declarative_sensorsd.dll
-    cmd rm lib/qml/QtMultimedia/declarative_multimediad.dll
-    cmd rm lib/qml/QtNfc/declarative_nfcd.dll
-    cmd rm lib/qml/QtWebChannel/declarative_webchanneld.dll
-    cmd rm lib/qml/Qt/labs/calendar/qtlabscalendarplugind.dll
-    cmd rm lib/qml/Qt/labs/platform/qtlabsplatformplugind.dll
-    cmd rm lib/qml/Qt/labs/sharedimage/sharedimageplugind.dll
-    cmd rm lib/qml/Qt3D/Animation/quick3danimationplugind.dll
-    cmd rm lib/qml/Qt3D/Core/quick3dcoreplugind.dll
-    cmd rm lib/qml/Qt3D/Extras/quick3dextrasplugind.dll
-    cmd rm lib/qml/Qt3D/Input/quick3dinputplugind.dll
-    cmd rm lib/qml/Qt3D/Logic/quick3dlogicplugind.dll
-    cmd rm lib/qml/Qt3D/Render/quick3drenderplugind.dll
-    cmd rm lib/qml/QtCharts/qtchartsqml2d.dll
-    cmd rm lib/qml/QtDataVisualization/datavisualizationqml2d.dll
-    cmd rm lib/qml/QtGamepad/declarative_gamepadd.dll
-    cmd rm lib/qml/QtGraphicalEffects/private/qtgraphicaleffectsprivated.dll
-    cmd rm lib/qml/QtGraphicalEffects/qtgraphicaleffectsplugind.dll
-    cmd rm lib/qml/QtPurchasing/declarative_purchasingd.dll
-    cmd rm lib/qml/QtQml/RemoteObjects/qtqmlremoteobjectsd.dll
-    cmd rm lib/qml/QtQuick/Controls.2/Material/qtquickcontrols2materialstyleplugind.dll
-    cmd rm lib/qml/QtQuick/Controls.2/qtquickcontrols2plugind.dll
-    cmd rm lib/qml/QtQuick/Controls.2/Universal/qtquickcontrols2universalstyleplugind.dll
-    cmd rm lib/qml/QtQuick/Scene2D/qtquickscene2dplugind.dll
-    cmd rm lib/qml/QtQuick/Scene3D/qtquickscene3dplugind.dll
-    cmd rm lib/qml/QtQuick/Templates.2/qtquicktemplates2plugind.dll
-    cmd rm lib/qml/QtQuick/VirtualKeyboard/Styles/qtvirtualkeyboardstylesplugind.dll
-    cmd rm lib/qml/QtScxml/declarative_scxmld.dll
-  fi
-  printf "[Paths]\nPlugins=lib/qt5\nQml2Imports=lib/qml\n" > qt.conf
+  printf "[Paths]\nPlugins=lib/qt6\nQml2Imports=lib/qml\n" > qt.conf
 
   if [ "$SDK" = "1" ]; then
     # Prepare src for archiving
     pushd .
     clean_dirs
     popd
-    log Copying src
-    cmd rm -rf src 2> /dev/null
-    cmd cp -a $SOURCE_DIR .
+    log Moving src
+    cmd mv $SOURCE_DIR .
 
     log Creating archive
     cmd cd ..
-    cmd zip -gr shotcut-sdk.zip Shotcut
+    cmd tar -cJf shotcut-sdk.txz Shotcut
     fi
   popd
 }

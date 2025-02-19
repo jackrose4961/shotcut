@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 Meltytech, LLC
+ * Copyright (c) 2016-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,26 +51,47 @@ public:
     int in();
     int out();
     double aspectRatio();
-    int duration() { return m_producer.is_valid()? out() - in() + 1 : 0; }
-    int length() { return m_producer.is_valid()? m_producer.get_length() : 0; }
+    int duration()
+    {
+        return m_producer.is_valid() ? out() - in() + 1 : 0;
+    }
+    int length()
+    {
+        return m_producer.is_valid() ? m_producer.get_length() : 0;
+    }
     QString resource();
-    QString mlt_service() { return m_producer.is_valid()? m_producer.get("mlt_service") : QString(); }
-    QString hash() { return m_producer.is_valid()? m_producer.get(kShotcutHashProperty) : QString(); }
+    QString mlt_service()
+    {
+        return m_producer.is_valid() ? m_producer.get("mlt_service") : QString();
+    }
+    QString hash()
+    {
+        return m_producer.is_valid() ? m_producer.get(kShotcutHashProperty) : QString();
+    }
     QString name();
     QVariant audioLevels();
     int fadeIn();
     int fadeOut();
     double speed();
-    int position() const { return m_position; }
+    int position() const
+    {
+        return m_position;
+    }
     void setPosition(int position);
     void seek(int position);
-    Mlt::Producer& producer() { return m_producer; }
-    Q_INVOKABLE void audioLevelsReady(const QModelIndex &index);
+    Mlt::Producer &producer()
+    {
+        return m_producer;
+    }
+    Q_INVOKABLE void audioLevelsReady(const QPersistentModelIndex &index);
     Q_INVOKABLE void remakeAudioLevels();
     double displayAspectRatio();
     Q_INVOKABLE QString get(QString name, int position = -1);
     Q_INVOKABLE double getDouble(QString name, int position = -1);
     Q_INVOKABLE QRectF getRect(QString name, int position = -1);
+    Q_INVOKABLE bool outOfBounds();
+    Q_INVOKABLE void newGlaxnimateFile(const QString &filename);
+    Q_INVOKABLE void launchGlaxnimate(const QString &filename = QString()) const;
 
 signals:
     void producerChanged();
@@ -83,7 +104,7 @@ signals:
     void lengthChanged();
 
 public slots:
-    void setProducer(Mlt::Producer& producer);
+    void setProducer(Mlt::Producer &producer);
     void remakeAudioLevels(bool isKeyframesVisible);
 
 private:

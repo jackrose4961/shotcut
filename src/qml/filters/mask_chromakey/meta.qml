@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Meltytech, LLC
+ * Copyright (c) 2021-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,15 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr('Mask: Chroma Key')
+    keywords: qsTr('matte stencil alpha color', 'search keywords for the Mask: Chroma Key video filter') + ' mask: chroma key'
     mlt_service: 'mask_start'
     objectName: 'maskChromaKey'
     qml: 'ui.qml'
+    icon: 'icon.webp'
     allowMultiple: false
 }

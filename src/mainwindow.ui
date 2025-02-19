@@ -55,6 +55,12 @@
      <addaction name="actionExportChapters"/>
      <addaction name="actionExportEDL"/>
     </widget>
+    <widget class="QMenu" name="menuOtherVersions">
+     <property name="title">
+      <string>Other Versions</string>
+     </property>
+     <addaction name="separator"/>
+    </widget>
     <addaction name="actionNew"/>
     <addaction name="actionOpen"/>
     <addaction name="actionOpenOther"/>
@@ -62,6 +68,10 @@
     <addaction name="separator"/>
     <addaction name="actionSave"/>
     <addaction name="actionSave_As"/>
+    <addaction name="actionBackupSave"/>
+    <addaction name="menuOtherVersions"/>
+    <addaction name="separator"/>
+    <addaction name="actionShowProjectFolder"/>
     <addaction name="menuExport"/>
     <addaction name="actionClose"/>
     <addaction name="separator"/>
@@ -88,7 +98,7 @@
      <addaction name="actionRestoreLayout"/>
      <addaction name="actionLayoutAdd"/>
     </widget>
-    <addaction name="actionEnter_Full_Screen"/>
+    <addaction name="actionEnterFullScreen"/>
     <addaction name="menuLayout"/>
     <addaction name="actionShowTitleBars"/>
     <addaction name="actionShowToolbar"/>
@@ -100,9 +110,11 @@
     <property name="title">
      <string>&amp;Edit</string>
     </property>
-    <addaction name="actionCut"/>
-    <addaction name="actionCopy"/>
-    <addaction name="actionPaste"/>
+   </widget>
+   <widget class="QMenu" name="menuPlayer">
+    <property name="title">
+     <string>&amp;Player</string>
+    </property>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -120,7 +132,7 @@
    </widget>
    <widget class="QMenu" name="menuSettings">
     <property name="title">
-     <string>Settings</string>
+     <string>&amp;Settings</string>
     </property>
     <widget class="QMenu" name="menuAudioChannels">
      <property name="title">
@@ -128,37 +140,14 @@
      </property>
      <addaction name="actionChannels1"/>
      <addaction name="actionChannels2"/>
+     <addaction name="actionChannels4"/>
      <addaction name="actionChannels6"/>
-    </widget>
-    <widget class="QMenu" name="menuDeinterlacer">
-     <property name="title">
-      <string>Deinterlacer</string>
-     </property>
-     <addaction name="actionOneField"/>
-     <addaction name="actionLinearBlend"/>
-     <addaction name="actionYadifTemporal"/>
-     <addaction name="actionYadifSpatial"/>
-    </widget>
-    <widget class="QMenu" name="menuInterpolation">
-     <property name="title">
-      <string>Interpolation</string>
-     </property>
-     <addaction name="actionNearest"/>
-     <addaction name="actionBilinear"/>
-     <addaction name="actionBicubic"/>
-     <addaction name="actionHyper"/>
     </widget>
     <widget class="QMenu" name="menuProfile">
      <property name="title">
       <string>Video Mode</string>
      </property>
      <addaction name="actionProfileAutomatic"/>
-    </widget>
-    <widget class="QMenu" name="menuExternal">
-     <property name="title">
-      <string>External Monitor</string>
-     </property>
-     <addaction name="actionExternalNone"/>
     </widget>
     <widget class="QMenu" name="menuLanguage">
      <property name="title">
@@ -173,13 +162,6 @@
      <addaction name="actionFusionDark"/>
      <addaction name="actionFusionLight"/>
     </widget>
-    <widget class="QMenu" name="menuGamma">
-     <property name="title">
-      <string>Gamma</string>
-     </property>
-     <addaction name="actionGammaSRGB"/>
-     <addaction name="actionGammaRec709"/>
-    </widget>
     <widget class="QMenu" name="menuDrawingMethod">
      <property name="title">
       <string>Display Method</string>
@@ -188,6 +170,23 @@
      <addaction name="actionDrawingOpenGL"/>
      <addaction name="actionDrawingDirectX"/>
      <addaction name="actionDrawingSoftware"/>
+    </widget>
+    <widget class="QMenu" name="menuJobPriority">
+     <property name="title">
+      <string>Job Priority</string>
+     </property>
+     <addaction name="actionJobPriorityLow"/>
+     <addaction name="actionJobPriorityNormal"/>
+    </widget>
+    <widget class="QMenu" name="menuTimeline">
+     <property name="title">
+      <string>Timeline</string>
+     </property>
+    </widget>
+    <widget class="QMenu" name="menuPlaylist">
+     <property name="title">
+      <string>Playlist</string>
+     </property>
     </widget>
     <widget class="QMenu" name="menuData_Directory">
      <property name="title">
@@ -204,6 +203,15 @@
      <addaction name="actionPreview360"/>
      <addaction name="actionPreview540"/>
      <addaction name="actionPreview720"/>
+    </widget>
+    <widget class="QMenu" name="menuTimeFormat">
+     <property name="title">
+      <string>Time Format</string>
+     </property>
+     <addaction name="actionTimeClock"/>
+     <addaction name="actionTimeDF"/>
+     <addaction name="actionTimeNDF"/>
+     <addaction name="actionTimeFrames"/>
     </widget>
     <widget class="QMenu" name="menuProxy">
      <property name="title">
@@ -223,34 +231,80 @@
      <addaction name="actionProxyUseHardware"/>
      <addaction name="actionProxyConfigureHardware"/>
     </widget>
+    <widget class="QMenu" name="menuPlayerSettings">
+     <property name="title">
+      <string>Player</string>
+     </property>
+     <widget class="QMenu" name="menuDeinterlacer">
+      <property name="title">
+       <string>Deinterlacer</string>
+      </property>
+      <addaction name="actionOneField"/>
+      <addaction name="actionLinearBlend"/>
+      <addaction name="actionYadifTemporal"/>
+      <addaction name="actionYadifSpatial"/>
+      <addaction name="actionBwdif"/>
+     </widget>
+     <widget class="QMenu" name="menuInterpolation">
+      <property name="title">
+       <string>Interpolation</string>
+      </property>
+      <addaction name="actionNearest"/>
+      <addaction name="actionBilinear"/>
+      <addaction name="actionBicubic"/>
+      <addaction name="actionHyper"/>
+     </widget>
+     <widget class="QMenu" name="menuExternal">
+      <property name="title">
+       <string>External Monitor</string>
+      </property>
+      <addaction name="actionExternalNone"/>
+     </widget>
+     <addaction name="actionPauseAfterSeek"/>
+     <addaction name="actionScrubAudio"/>
+     <addaction name="actionJack"/>
+     <addaction name="actionRealtime"/>
+     <addaction name="actionProgressive"/>
+     <addaction name="menuDeinterlacer"/>
+     <addaction name="menuInterpolation"/>
+     <addaction name="menuExternal"/>
+     <addaction name="actionSync"/>
+    </widget>
+    <widget class="QMenu" name="menuBackup">
+     <property name="title">
+      <string>Backup</string>
+     </property>
+     <addaction name="actionBackupManually"/>
+     <addaction name="actionBackupHourly"/>
+     <addaction name="actionBackupDaily"/>
+     <addaction name="actionBackupWeekly"/>
+    </widget>
     <addaction name="actionProject"/>
     <addaction name="actionGPU"/>
     <addaction name="menuProfile"/>
     <addaction name="menuAudioChannels"/>
-    <addaction name="separator"/>
-    <addaction name="actionPlayer"/>
-    <addaction name="actionScrubAudio"/>
-    <addaction name="actionJack"/>
-    <addaction name="actionRealtime"/>
-    <addaction name="actionProgressive"/>
+    <addaction name="menuBackup"/>
+    <addaction name="actionUser_Interface"/>
     <addaction name="menuPreviewScaling"/>
     <addaction name="menuProxy"/>
-    <addaction name="menuDeinterlacer"/>
-    <addaction name="menuInterpolation"/>
-    <addaction name="menuExternal"/>
-    <addaction name="menuGamma"/>
-    <addaction name="actionSync"/>
-    <addaction name="separator"/>
-    <addaction name="actionUser_Interface"/>
+    <addaction name="menuPlayerSettings"/>
+    <addaction name="menuPlaylist"/>
+    <addaction name="menuTimeline"/>
+    <addaction name="menuTimeFormat"/>
     <addaction name="menuLanguage"/>
     <addaction name="menuTheme"/>
     <addaction name="menuDrawingMethod"/>
+    <addaction name="menuJobPriority"/>
     <addaction name="menuData_Directory"/>
+    <addaction name="actionAudioVideoDevice"/>
     <addaction name="actionClearRecentOnExit"/>
+    <addaction name="separator"/>
+    <addaction name="actionReset"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
+   <addaction name="menuPlayer"/>
    <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -265,7 +319,7 @@
     <bool>false</bool>
    </property>
    <property name="toolButtonStyle">
-    <enum>Qt::ToolButtonFollowStyle</enum>
+    <enum>Qt::ToolButtonStyle::ToolButtonFollowStyle</enum>
    </property>
    <property name="floatable">
     <bool>false</bool>
@@ -290,13 +344,14 @@
    <addaction name="actionProperties"/>
    <addaction name="actionRecent"/>
    <addaction name="actionPlaylist"/>
+   <addaction name="actionFiles"/>
    <addaction name="actionTimeline"/>
    <addaction name="actionFilters"/>
-   <addaction name="actionMarkers"/>
    <addaction name="actionKeyframes"/>
    <addaction name="actionHistory"/>
    <addaction name="actionEncode"/>
    <addaction name="actionJobs"/>
+   <addaction name="actionSubtitles"/>
    <addaction name="dummyAction"/>
    <addaction name="actionLayoutLogging"/>
    <addaction name="actionLayoutEditing"/>
@@ -315,7 +370,7 @@
     <string>&amp;Open File...</string>
    </property>
    <property name="toolTip">
-    <string>Open a video, audio or image file</string>
+    <string>Open a video, audio, image, or project file</string>
    </property>
    <property name="shortcut">
     <string notr="true">Ctrl+O</string>
@@ -340,7 +395,7 @@
     <string>&amp;About Shotcut</string>
    </property>
    <property name="menuRole">
-    <enum>QAction::AboutRole</enum>
+    <enum>QAction::MenuRole::AboutRole</enum>
    </property>
   </action>
   <action name="actionAbout_Qt">
@@ -348,7 +403,7 @@
     <string>About Qt</string>
    </property>
    <property name="menuRole">
-    <enum>QAction::AboutQtRole</enum>
+    <enum>QAction::MenuRole::AboutQtRole</enum>
    </property>
   </action>
   <action name="actionOpenOther">
@@ -403,7 +458,7 @@
     <string>Export</string>
    </property>
    <property name="toolTip">
-    <string>Show the Export panel</string>
+    <string>Export</string>
    </property>
   </action>
   <action name="actionUndo">
@@ -434,7 +489,7 @@
     <string>FAQ...</string>
    </property>
   </action>
-  <action name="actionEnter_Full_Screen">
+  <action name="actionEnterFullScreen">
    <property name="icon">
     <iconset theme="view-fullscreen" resource="../icons/resources.qrc">
      <normaloff>:/icons/oxygen/32x32/actions/view-fullscreen.png</normaloff>:/icons/oxygen/32x32/actions/view-fullscreen.png</iconset>
@@ -455,7 +510,7 @@
     <string>Peak Meter</string>
    </property>
    <property name="toolTip">
-    <string>Show or hide the audio peak meter</string>
+    <string>Audio Peak Meter</string>
    </property>
   </action>
   <action name="actionProperties">
@@ -546,12 +601,20 @@
     <string>2 (stereo)</string>
    </property>
   </action>
+  <action name="actionChannels4">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>4 (quad/Ambisonics)</string>
+   </property>
+  </action>
   <action name="actionChannels6">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>6 (5.1)</string>
+    <string>6 (5.1 surround)</string>
    </property>
   </action>
   <action name="actionOneField">
@@ -586,7 +649,15 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>YADIF - temporal + spatial (best)</string>
+    <string>YADIF - temporal + spatial (better)</string>
+   </property>
+  </action>
+  <action name="actionBwdif">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>BWDIF (best)</string>
    </property>
   </action>
   <action name="actionNearest">
@@ -621,7 +692,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string notr="true">Lanczos (best)</string>
+    <string>Lanczos (best)</string>
    </property>
   </action>
   <action name="actionProfileAutomatic">
@@ -663,7 +734,7 @@
     <string>Filters</string>
    </property>
    <property name="toolTip">
-    <string>Modify the video image or audio</string>
+    <string>Filters</string>
    </property>
   </action>
   <action name="actionAddCustomProfile">
@@ -749,25 +820,6 @@
     <string>Open a MLT XML project file as a virtual clip</string>
    </property>
   </action>
-  <action name="actionGammaSRGB">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>sRGB (computer)</string>
-   </property>
-  </action>
-  <action name="actionGammaRec709">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Rec. 709 (TV)</string>
-   </property>
-  </action>
   <action name="actionScrubAudio">
    <property name="checkable">
     <bool>true</bool>
@@ -811,6 +863,27 @@
     <string extracomment="Do not translate &quot;Mesa&quot;">Software (Mesa)</string>
    </property>
   </action>
+  <action name="actionJobPriorityLow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Low</string>
+   </property>
+  </action>
+  <action name="actionJobPriorityNormal">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Normal</string>
+   </property>
+  </action>
+  <action name="actionResources">
+   <property name="text">
+    <string>Resources...</string>
+   </property>
+  </action>
   <action name="actionApplicationLog">
    <property name="text">
     <string>Application Log...</string>
@@ -818,23 +891,15 @@
   </action>
   <action name="actionProject">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>Project</string>
    </property>
   </action>
-  <action name="actionPlayer">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>Player</string>
-   </property>
-  </action>
   <action name="actionUser_Interface">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>User Interface</string>
@@ -842,8 +907,7 @@
   </action>
   <action name="actionClose">
    <property name="icon">
-    <iconset theme="window-close">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="window-close"/>
    </property>
    <property name="text">
     <string>Close</string>
@@ -853,51 +917,6 @@
    </property>
    <property name="iconVisibleInMenu">
     <bool>false</bool>
-   </property>
-  </action>
-  <action name="actionCut">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="icon">
-    <iconset theme="edit-cut" resource="../icons/resources.qrc">
-     <normaloff>:/icons/oxygen/32x32/actions/edit-cut.png</normaloff>:/icons/oxygen/32x32/actions/edit-cut.png</iconset>
-   </property>
-   <property name="text">
-    <string>Cu&amp;t</string>
-   </property>
-   <property name="shortcut">
-    <string notr="true">Ctrl+X</string>
-   </property>
-  </action>
-  <action name="actionCopy">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="icon">
-    <iconset theme="edit-copy" resource="../icons/resources.qrc">
-     <normaloff>:/icons/oxygen/32x32/actions/edit-copy.png</normaloff>:/icons/oxygen/32x32/actions/edit-copy.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Copy</string>
-   </property>
-   <property name="shortcut">
-    <string notr="true">Ctrl+C</string>
-   </property>
-  </action>
-  <action name="actionPaste">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="icon">
-    <iconset theme="edit-paste" resource="../icons/resources.qrc">
-     <normaloff>:/icons/oxygen/32x32/actions/edit-paste.png</normaloff>:/icons/oxygen/32x32/actions/edit-paste.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Paste</string>
-   </property>
-   <property name="shortcut">
-    <string notr="true">Ctrl+V</string>
    </property>
   </action>
   <action name="actionExportEDL">
@@ -974,7 +993,7 @@
   </action>
   <action name="actionKeyboardShortcuts">
    <property name="text">
-    <string>Keyboard Shortcuts...</string>
+    <string>Actions and Shortcuts...</string>
    </property>
    <property name="shortcut">
     <string notr="true">?</string>
@@ -1108,6 +1127,24 @@
     <string>Markers</string>
    </property>
   </action>
+  <action name="actionNotes">
+   <property name="icon">
+    <iconset theme="document-edit" resource="../icons/resources.qrc">
+     <normaloff>:/icons/oxygen/32x32/actions/document-edit.png</normaloff>:/icons/oxygen/32x32/actions/document-edit.png</iconset>
+   </property>
+   <property name="text">
+    <string>Notes</string>
+   </property>
+  </action>
+  <action name="actionSubtitles">
+   <property name="icon">
+    <iconset theme="subtitle" resource="../icons/resources.qrc">
+     <normaloff>:/icons/oxygen/32x32/actions/subtitle.png</normaloff>:/icons/oxygen/32x32/actions/subtitle.png</iconset>
+   </property>
+   <property name="text">
+    <string>Subtitles</string>
+   </property>
+  </action>
   <action name="actionPreview540">
    <property name="checkable">
     <bool>true</bool>
@@ -1150,6 +1187,38 @@
    </property>
    <property name="shortcut">
     <string notr="true">F7</string>
+   </property>
+  </action>
+  <action name="actionTimeDF">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Timecode (Drop-Frame)</string>
+   </property>
+  </action>
+  <action name="actionTimeFrames">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Frames</string>
+   </property>
+  </action>
+  <action name="actionTimeClock">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Clock</string>
+   </property>
+  </action>
+  <action name="actionTimeNDF">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Timecode (Non-Drop Frame)</string>
    </property>
   </action>
   <action name="actionTopics">
@@ -1277,6 +1346,87 @@
    </property>
    <property name="toolTip">
     <string>Export Chapters</string>
+   </property>
+  </action>
+  <action name="actionAudioVideoDevice">
+   <property name="text">
+    <string>Audio/Video Device...</string>
+   </property>
+  </action>
+  <action name="actionReset">
+   <property name="text">
+    <string>Reset...</string>
+   </property>
+  </action>
+  <action name="actionBackupSave">
+   <property name="text">
+    <string>Backup and Save</string>
+   </property>
+   <property name="toolTip">
+    <string>Backup and Save</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+S</string>
+   </property>
+  </action>
+  <action name="actionBackupManually">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Manually</string>
+   </property>
+  </action>
+  <action name="actionBackupHourly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Hourly</string>
+   </property>
+  </action>
+  <action name="actionBackupDaily">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Daily</string>
+   </property>
+  </action>
+  <action name="actionBackupWeekly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Weekly</string>
+   </property>
+  </action>
+  <action name="actionShowProjectFolder">
+   <property name="text">
+    <string>Show Project in Folder</string>
+   </property>
+  </action>
+  <action name="actionPauseAfterSeek">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Pause After Seek</string>
+   </property>
+  </action>
+  <action name="actionFiles">
+   <property name="icon">
+    <iconset theme="system-file-manager" resource="../icons/resources.qrc">
+     <normaloff>:/icons/oxygen/32x32/apps/system-file-manager.png</normaloff>:/icons/oxygen/32x32/apps/system-file-manager.png</iconset>
+   </property>
+   <property name="text">
+    <string>Files</string>
    </property>
   </action>
  </widget>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Meltytech, LLC
+ * Copyright (c) 2016-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,13 +14,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("LUT (3D)")
+    keywords: qsTr('lookup table color', 'search keywords for the LUT (3D) video filter') + ' 3dl cube dat m3d lut (3d)'
     mlt_service: 'avfilter.lut3d'
     qml: 'ui.qml'
+    icon: 'icon.webp'
 }

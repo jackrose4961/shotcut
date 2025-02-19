@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 Meltytech, LLC
+ * Copyright (c) 2012-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "mltcontroller.h"
 #include "util.h"
 #include "shotcut_mlt_properties.h"
+#include "settings.h"
 
 AlsaWidget::AlsaWidget(QWidget *parent) :
     QWidget(parent),
@@ -30,6 +31,7 @@ AlsaWidget::AlsaWidget(QWidget *parent) :
     ui->applyButton->hide();
     ui->preset->saveDefaultPreset(getPreset());
     ui->preset->loadPresets();
+    ui->lineEdit->setText(Settings.audioInput());
 }
 
 AlsaWidget::~AlsaWidget()
@@ -37,7 +39,7 @@ AlsaWidget::~AlsaWidget()
     delete ui;
 }
 
-Mlt::Producer* AlsaWidget::newProducer(Mlt::Profile& profile)
+Mlt::Producer *AlsaWidget::newProducer(Mlt::Profile &profile)
 {
     QString s("alsa:%1");
     if (ui->lineEdit->text().isEmpty())
@@ -45,10 +47,11 @@ Mlt::Producer* AlsaWidget::newProducer(Mlt::Profile& profile)
     else
         s = s.arg(ui->lineEdit->text());
     if (ui->alsaChannelsSpinBox->value() > 0)
-        s += QString("?channels=%1").arg(ui->alsaChannelsSpinBox->value());
-    Mlt::Producer* p = new Mlt::Producer(profile, s.toUtf8().constData());
+        s += QStringLiteral("?channels=%1").arg(ui->alsaChannelsSpinBox->value());
+    Mlt::Producer *p = new Mlt::Producer(profile, s.toUtf8().constData());
     p->set(kBackgroundCaptureProperty, 1);
     p->set(kShotcutCaptionProperty, "ALSA");
+    Settings.setAudioInput(ui->lineEdit->text());
     return p;
 }
 
@@ -65,7 +68,7 @@ Mlt::Properties AlsaWidget::getPreset() const
     return p;
 }
 
-void AlsaWidget::loadPreset(Mlt::Properties& p)
+void AlsaWidget::loadPreset(Mlt::Properties &p)
 {
     QString s(p.get("resource"));
     int i = s.indexOf(':');
@@ -75,9 +78,9 @@ void AlsaWidget::loadPreset(Mlt::Properties& p)
         ui->alsaChannelsSpinBox->setValue(p.get_int("channels"));
 }
 
-void AlsaWidget::on_preset_selected(void* p)
+void AlsaWidget::on_preset_selected(void *p)
 {
-    Mlt::Properties* properties = (Mlt::Properties*) p;
+    Mlt::Properties *properties = (Mlt::Properties *) p;
     loadPreset(*properties);
     delete properties;
 }
@@ -87,7 +90,7 @@ void AlsaWidget::on_preset_saveClicked()
     ui->preset->savePreset(getPreset());
 }
 
-void AlsaWidget::setProducer(Mlt::Producer* producer)
+void AlsaWidget::setProducer(Mlt::Producer *producer)
 {
     ui->applyButton->show();
     if (producer)

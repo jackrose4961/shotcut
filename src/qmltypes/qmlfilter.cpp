@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "qmlfilter.h"
 #include "mltcontroller.h"
 #include "mainwindow.h"
+#include "commands/filtercommands.h"
 #include "controllers/filtercontroller.h"
 #include "jobqueue.h"
 #include "jobs/encodejob.h"
@@ -32,26 +33,30 @@
 #include <QTemporaryFile>
 #include <QFile>
 #include <QtXml>
+#include <QGuiApplication>
+#include <QClipboard>
 #include <MltProducer.h>
 
 QmlFilter::QmlFilter()
-    : QObject(0)
-    , m_metadata(0)
-    , m_service(mlt_service(0))
-    , m_producer(mlt_producer(0))
+    : QObject(nullptr)
+    , m_metadata(nullptr)
+    , m_service(mlt_service(nullptr))
+    , m_producer(mlt_producer(nullptr))
     , m_isNew(false)
+    , m_changeInProgress(0)
 {
     connect(this, SIGNAL(inChanged(int)), this, SIGNAL(durationChanged()));
     connect(this, SIGNAL(outChanged(int)), this, SIGNAL(durationChanged()));
 }
 
-QmlFilter::QmlFilter(Mlt::Service& mltService, const QmlMetadata* metadata, QObject* parent)
+QmlFilter::QmlFilter(Mlt::Service &mltService, const QmlMetadata *metadata, QObject *parent)
     : QObject(parent)
     , m_metadata(metadata)
     , m_service(mltService)
     , m_producer(mlt_producer(nullptr))
     , m_path(m_metadata->path().absolutePath().append('/'))
     , m_isNew(false)
+    , m_changeInProgress(false)
 {
     if (m_service.type() == mlt_service_filter_type) {
         // Every attached filter has a service property that points to the service to which it is attached.
@@ -60,8 +65,6 @@ QmlFilter::QmlFilter(Mlt::Service& mltService, const QmlMetadata* metadata, QObj
         // Every attached link has a chain property that points to the chain to which it is attached.
         m_producer = Mlt::Producer(mlt_producer(m_service.is_valid() ? m_service.get_data("chain") : 0));
     }
-
-    connect(this, SIGNAL(changed(QString)), SIGNAL(changed()));
 }
 
 QmlFilter::~QmlFilter()
@@ -80,6 +83,18 @@ QString QmlFilter::get(QString name, int position)
     }
 }
 
+QColor QmlFilter::getColor(QString name, int position)
+{
+    mlt_color color = {0, 0, 0, 0};
+    if (m_service.is_valid()) {
+        if (position < 0)
+            color = m_service.get_color(qUtf8Printable(name));
+        else
+            color = m_service.anim_get_color(qUtf8Printable(name), position, duration());
+    }
+    return QColor(color.r, color.g, color.b, color.a);
+}
+
 double QmlFilter::getDouble(QString name, int position)
 {
     if (m_service.is_valid()) {
@@ -95,13 +110,13 @@ double QmlFilter::getDouble(QString name, int position)
 QRectF QmlFilter::getRect(QString name, int position)
 {
     if (!m_service.is_valid()) return QRectF();
-    const char* s = m_service.get(qUtf8Printable(name));
+    const char *s = m_service.get(qUtf8Printable(name));
     if (s) {
         mlt_rect rect;
         if (position < 0) {
             rect = m_service.get_rect(qUtf8Printable(name));
         } else {
-            rect = m_service.anim_get_rect(qUtf8Printable(name), position, duration());
+            rect = m_service.anim_get_rect(qUtf8Printable(name), position, -1);
         }
         if (::strchr(s, '%')) {
             return QRectF(qRound(rect.x * MLT.profile().width()),
@@ -120,7 +135,7 @@ void QmlFilter::removeRectPercents(QString name)
 {
     // This method iterates over each keyframe and converts the percentage values to absolute.
     if (!m_service.is_valid()) return;
-    const char* s = m_service.get(qUtf8Printable(name));
+    const char *s = m_service.get(qUtf8Printable(name));
     if (s && ::strchr(s, '%')) {
         m_service.anim_get_rect(qUtf8Printable(name), 0, duration());
         auto anim = m_service.get_anim(qUtf8Printable(name));
@@ -148,7 +163,7 @@ QStringList QmlFilter::getGradient(QString name)
     QStringList list;
     for (int i = 1; i <= 10; i++) {
         QString colorName = name + "." + QString::number(i);
-        const char* value = m_service.get(qUtf8Printable(colorName));
+        const char *value = m_service.get(qUtf8Printable(colorName));
         if (value) {
             list.append(QString::fromUtf8(value));
         } else {
@@ -165,6 +180,7 @@ void QmlFilter::set(QString name, QString value, int position)
         if (qstrcmp(m_service.get(qUtf8Printable(name)), qUtf8Printable(value)))  {
             m_service.set_string(qUtf8Printable(name), qUtf8Printable(value)) ;
             emit changed(name);
+            updateUndoCommand(name);
         }
     } else {
         // Only set an animation keyframe if it does not already exist with the same value.
@@ -173,6 +189,31 @@ void QmlFilter::set(QString name, QString value, int position)
                 || value != m_service.anim_get(qUtf8Printable(name), position, duration())) {
             m_service.anim_set(qUtf8Printable(name), qUtf8Printable(value), position, duration());
             emit changed(name);
+            updateUndoCommand(name);
+        }
+    }
+}
+
+void QmlFilter::set(QString name, const QColor &value, int position, mlt_keyframe_type keyframeType)
+{
+    if (!m_service.is_valid()) return;
+    if (position < 0) {
+        auto mltColor = m_service.get_color(qUtf8Printable(name));
+        if (!m_service.get(qUtf8Printable(name))
+                || value != QColor(mltColor.r, mltColor.g, mltColor.b, mltColor.a)) {
+            m_service.set(qUtf8Printable(name), Util::mltColorFromQColor(value));
+            emit changed(name);
+            updateUndoCommand(name);
+        }
+    } else {
+        // Only set an animation keyframe if it does not already exist with the same value.
+        Mlt::Animation animation(m_service.get_animation(qUtf8Printable(name)));
+        auto mltColor = m_service.anim_get_color(qUtf8Printable(name), position, duration());
+        if (!animation.is_valid() || !animation.is_key(position)
+                || value != QColor(mltColor.r, mltColor.g, mltColor.b, mltColor.a)) {
+            m_service.anim_set(qUtf8Printable(name), Util::mltColorFromQColor(value), position, duration());
+            emit changed(name);
+            updateUndoCommand(name);
         }
     }
 }
@@ -182,7 +223,7 @@ void QmlFilter::set(QString name, double value, int position, mlt_keyframe_type 
     if (!m_service.is_valid()) return;
     if (position < 0) {
         if (!m_service.get(qUtf8Printable(name))
-            || m_service.get_double(qUtf8Printable(name)) != value) {
+                || m_service.get_double(qUtf8Printable(name)) != value) {
             double delta = value - m_service.get_double(qUtf8Printable(name));
             m_service.set(qUtf8Printable(name), value);
             emit changed(name);
@@ -191,6 +232,7 @@ void QmlFilter::set(QString name, double value, int position, mlt_keyframe_type 
             } else if (name == "out") {
                 emit outChanged(delta);
             }
+            updateUndoCommand(name);
         }
     } else {
         // Only set an animation keyframe if it does not already exist with the same value.
@@ -200,6 +242,7 @@ void QmlFilter::set(QString name, double value, int position, mlt_keyframe_type 
             mlt_keyframe_type type = getKeyframeType(animation, position, keyframeType);
             m_service.anim_set(qUtf8Printable(name), value, position, duration(), type);
             emit changed(name);
+            updateUndoCommand(name);
         }
     }
 }
@@ -209,7 +252,7 @@ void QmlFilter::set(QString name, int value, int position, mlt_keyframe_type key
     if (!m_service.is_valid()) return;
     if (position < 0) {
         if (!m_service.get(qUtf8Printable(name))
-            || m_service.get_int(qUtf8Printable(name)) != value) {
+                || m_service.get_int(qUtf8Printable(name)) != value) {
             int delta = value - m_service.get_int(qUtf8Printable(name));
             m_service.set(qUtf8Printable(name), value);
             emit changed(name);
@@ -218,6 +261,7 @@ void QmlFilter::set(QString name, int value, int position, mlt_keyframe_type key
             } else if (name == "out") {
                 emit outChanged(delta);
             }
+            updateUndoCommand(name);
         }
     } else {
         // Only set an animation keyframe if it does not already exist with the same value.
@@ -227,13 +271,14 @@ void QmlFilter::set(QString name, int value, int position, mlt_keyframe_type key
             mlt_keyframe_type type = getKeyframeType(animation, position, keyframeType);
             m_service.anim_set(qUtf8Printable(name), value, position, duration(), type);
             emit changed(name);
+            updateUndoCommand(name);
         }
     }
 }
 
 void QmlFilter::set(QString name, bool value, int position, mlt_keyframe_type keyframeType)
 {
-    set(name, value? 1 : 0, position, keyframeType);
+    set(name, value ? 1 : 0, position, keyframeType);
 }
 
 void QmlFilter::set(QString name, double x, double y, double width, double height, double opacity,
@@ -243,9 +288,10 @@ void QmlFilter::set(QString name, double x, double y, double width, double heigh
     if (position < 0) {
         mlt_rect rect = m_service.get_rect(qUtf8Printable(name));
         if (!m_service.get(qUtf8Printable(name)) || x != rect.x || y != rect.y
-            || width != rect.w || height != rect.h || opacity != rect.o) {
+                || width != rect.w || height != rect.h || opacity != rect.o) {
             m_service.set(qUtf8Printable(name), x, y, width, height, opacity);
             emit changed(name);
+            updateUndoCommand(name);
         }
     } else {
         mlt_rect rect = m_service.anim_get_rect(qUtf8Printable(name), position, duration());
@@ -253,6 +299,10 @@ void QmlFilter::set(QString name, double x, double y, double width, double heigh
         Mlt::Animation animation(m_service.get_animation(qUtf8Printable(name)));
         if (!animation.is_valid() || !animation.is_key(position)
                 || x != rect.x || y != rect.y || width != rect.w || height != rect.h || opacity != rect.o) {
+            if (animation.key_count() < 1) {
+                // Clear the string value when setting animation for the first time
+                m_service.clear(qUtf8Printable(name));
+            }
             rect.x = x;
             rect.y = y;
             rect.w = width;
@@ -261,26 +311,28 @@ void QmlFilter::set(QString name, double x, double y, double width, double heigh
             mlt_keyframe_type type = getKeyframeType(animation, position, keyframeType);
             m_service.anim_set(qUtf8Printable(name), rect, position, duration(), type);
             emit changed(name);
+            updateUndoCommand(name);
         }
     }
 }
 
-void QmlFilter::setGradient(QString name, const QStringList& gradient)
+void QmlFilter::setGradient(QString name, const QStringList &gradient)
 {
     for (int i = 1; i <= 10;  i++) {
         QString colorName = name + "." + QString::number(i);
         if (i <= gradient.length()) {
-            m_service.set(qUtf8Printable(colorName), qUtf8Printable(gradient[i-1]));
+            m_service.set(qUtf8Printable(colorName), qUtf8Printable(gradient[i - 1]));
         } else {
             m_service.clear(qUtf8Printable(colorName));
         }
     }
-    emit changed();
+    emit changed(name.toUtf8().constData());
+    updateUndoCommand(name);
 }
 
-void QmlFilter::set(QString name, const QRectF& rect, double opacity, int position, mlt_keyframe_type keyframeType)
+void QmlFilter::set(QString name, const QRectF &rect, int position, mlt_keyframe_type keyframeType)
 {
-    set(name, rect.x(), rect.y(), rect.width(), rect.height(), opacity, position, keyframeType);
+    set(name, rect.x(), rect.y(), rect.width(), rect.height(), 1.0, position, keyframeType);
 }
 
 void QmlFilter::loadPresets()
@@ -292,7 +344,7 @@ void QmlFilter::loadPresets()
         foreach (QString s, entries) {
             if (s == objectNameOrService() && dir.cd(s)) {
                 m_presets.append("");
-                for (auto& s : dir.entryList(QDir::Files | QDir::Readable)) {
+                for (auto &s : dir.entryList(QDir::Files | QDir::Readable)) {
                     if (s == QUrl::toPercentEncoding(QUrl::fromPercentEncoding(s.toUtf8())))
                         m_presets << QUrl::fromPercentEncoding(s.toUtf8());
                     else
@@ -322,14 +374,15 @@ int QmlFilter::savePreset(const QStringList &propertyNames, const QString &name)
         if (dir.mkdir(objectNameOrService()))
             dir.cd(objectNameOrService());
     }
-    QString preset = name.isEmpty()? tr("(defaults)") : QString::fromUtf8(QUrl::toPercentEncoding(name));
+    QString preset = name.isEmpty() ? tr("(defaults)") : QString::fromUtf8(QUrl::toPercentEncoding(
+                                                                               name));
     // Convert properties to YAML string.
-    char* yamlStr = properties.serialise_yaml();
+    char *yamlStr = properties.serialise_yaml();
     QString yaml = yamlStr;
     free(yamlStr);
     // Save YAML to file
     QFile yamlFile(dir.filePath(preset));
-    if(!yamlFile.open(QIODevice::WriteOnly)) {
+    if (!yamlFile.open(QIODevice::WriteOnly)) {
         LOG_ERROR() << "Failed to save preset: " << dir.filePath(preset);
     }
     yamlFile.write(yaml.toUtf8());
@@ -349,26 +402,33 @@ void QmlFilter::deletePreset(const QString &name)
     emit presetsChanged();
 }
 
-void QmlFilter::analyze(bool isAudio)
+void QmlFilter::analyze(bool isAudio, bool deferJob)
 {
     // Analyze is only supported for filters, not links.
     if (m_service.type() != mlt_service_filter_type) return;
 
     Mlt::Filter mltFilter(m_service);
     Mlt::Service service(mlt_service(mltFilter.get_data("service")));
+    auto in = service.get_int("in");
+    auto out = service.get_int("out");
 
     // get temp file for input xml
     QString filename(mltFilter.get("filename"));
     QScopedPointer<QTemporaryFile> tmp(Util::writableTemporaryFile(filename));
     tmp->open();
 
-    mltFilter.set("results", nullptr, 0);
+    mltFilter.clear("results");
     int disable = mltFilter.get_int("disable");
     mltFilter.set("disable", 0);
     if (!isAudio) mltFilter.set("analyze", 1);
 
+    // Tag the filter with a UUID stored in a shotcut property to uniquely find it later
+    auto uuid = QUuid::createUuid();
+    auto ba = uuid.toByteArray();
+    mltFilter.set(kShotcutHashProperty, ba.constData());
+
     // Fix in/out points of filters on clip-only project.
-    if (MLT.isSeekableClip()) {
+    if (MLT.isSeekableClip() && mlt_service_chain_type != MLT.producer()->type()) {
         Mlt::Producer producer(MLT.profile(), "xml-string", MLT.XML().toUtf8().constData());
         service = Mlt::Service(producer);
         int producerIn = producer.get_in();
@@ -380,10 +440,21 @@ void QmlFilter::analyze(bool isAudio)
                     filter.set_in_and_out(filter.get_in() - producerIn, filter.get_out() - producerIn);
             }
         }
+    } else {
+        service.set("in", mltFilter.get_in());
+        service.set("out", mltFilter.get_out());
+        if (mlt_service_producer_type == service.type())
+            mltFilter.set_in_and_out(0, mltFilter.get_length() - 1);
     }
 
+    // Write the job XML
     MLT.saveXML(tmp->fileName(), &service, false /* without relative paths */, tmp.data());
     tmp->close();
+
+    if (!MLT.isSeekableClip()) {
+        service.set("in", in);
+        service.set("out", out);
+    }
 
     if (!isAudio) mltFilter.set("analyze", 0);
     mltFilter.set("disable", disable);
@@ -413,13 +484,12 @@ void QmlFilter::analyze(bool isAudio)
         consumerNode.setAttribute("video_off", 1);
     else
         consumerNode.setAttribute("audio_off", 1);
-    consumerNode.setAttribute("no_meta", 1);
     consumerNode.setAttribute("resource", tmpTarget->fileName());
 
-    AbstractJob* job = new MeltJob(tmpTarget->fileName(), dom.toString(2),
-        MLT.profile().frame_rate_num(), MLT.profile().frame_rate_den());
+    AbstractJob *job = new MeltJob(tmpTarget->fileName(), dom.toString(2),
+                                   MLT.profile().frame_rate_num(), MLT.profile().frame_rate_den());
     if (job) {
-        AnalyzeDelegate* delegate = new AnalyzeDelegate(mltFilter);
+        AnalyzeDelegate *delegate = new AnalyzeDelegate(mltFilter);
         connect(job, &AbstractJob::finished, delegate, &AnalyzeDelegate::onAnalyzeFinished);
         connect(job, &AbstractJob::finished, this, &QmlFilter::analyzeFinished);
         job->setLabel(tr("Analyze %1").arg(Util::baseName(ProxyManager::resource(service))));
@@ -432,8 +502,13 @@ void QmlFilter::analyze(bool isAudio)
             file.open(QFile::WriteOnly);
             file.write("");
         }
-
-        JOBS.add(job);
+        if (deferJob) {
+            QTimer::singleShot(0, this, [ = ]() {
+                JOBS.add(job);
+            });
+        } else {
+            JOBS.add(job);
+        }
     }
 }
 
@@ -443,30 +518,6 @@ int QmlFilter::framesFromTime(const QString &time)
         return MLT.producer()->time_to_frames(time.toLatin1().constData());
     }
     return 0;
-}
-
-QString QmlFilter::timeFromFrames(int frames, TimeFormat format)
-{
-    if (MLT.producer()) {
-        mlt_time_format mltFormat = mlt_time_smpte_df;
-        switch ( format )
-        {
-            case TIME_FRAMES:
-                mltFormat = mlt_time_frames;
-                break;
-            case TIME_CLOCK:
-                mltFormat = mlt_time_clock;
-                break;
-            case TIME_TIMECODE_DF:
-                mltFormat = mlt_time_smpte_df;
-                break;
-            case TIME_TIMECODE_NDF:
-                mltFormat = mlt_time_smpte_ndf;
-                break;
-        }
-        return MLT.producer()->frames_to_time(frames, mltFormat);
-    }
-    return QString();
 }
 
 void QmlFilter::getHash()
@@ -480,7 +531,7 @@ int QmlFilter::in()
     int result = 0;
     if (m_service.is_valid()) {
         if (m_service.type() == mlt_service_link_type ||
-            (m_service.get_int("in") == 0 && m_service.get_int("out") == 0)) { // undefined/always-on
+                (m_service.get_int("in") == 0 && m_service.get_int("out") == 0)) { // undefined/always-on
             if (!m_producer.is_valid()) {
                 result = 0;
             } else if (m_producer.get(kFilterInProperty)) {
@@ -503,7 +554,7 @@ int QmlFilter::out()
     int result = 0;
     if (m_service.is_valid()) {
         if (m_service.type() == mlt_service_link_type ||
-            (m_service.get_int("in") == 0 && m_service.get_int("out") == 0)) { // undefined/always-on
+                (m_service.get_int("in") == 0 && m_service.get_int("out") == 0)) { // undefined/always-on
             if (!m_producer.is_valid()) {
                 result = 0;
             } else if (m_producer.get(kFilterOutProperty)) {
@@ -531,6 +582,26 @@ void QmlFilter::setAnimateIn(int value)
     value = qBound(0, value, duration());
     if (value != m_service.time_to_frames(m_service.get(kShotcutAnimInProperty))) {
         m_service.set(kShotcutAnimInProperty, m_service.frames_to_time(value, mlt_time_clock));
+        if (value == 0 && m_service.time_to_frames(m_service.get(kShotcutAnimOutProperty)) == 0) {
+            // Clear simple keyframes
+            for (int i = 0; i < m_metadata->keyframes()->parameterCount(); i++) {
+                QString name = m_metadata->keyframes()->parameter(i)->property();
+                Mlt::Animation anim = getAnimation(name);
+                if (anim.is_valid() && anim.key_count() > 0) {
+                    QString value;
+                    if (anim.key_count() > 1) {
+                        // The second keyframe should be the "middle" simple keyframe.
+                        value = m_service.anim_get(qUtf8Printable(name), 1);
+                    } else {
+                        // Failsafe. This should not happen
+                        value = m_service.anim_get(qUtf8Printable(name), 0);
+                    }
+                    m_service.clear(qUtf8Printable(name));
+                    m_service.set(qUtf8Printable(name), qUtf8Printable(value));
+                }
+            }
+        }
+        updateUndoCommand(kShotcutAnimInProperty);
         emit animateInChanged();
     }
 }
@@ -545,8 +616,41 @@ void QmlFilter::setAnimateOut(int value)
     value = qBound(0, value, duration());
     if (value != m_service.time_to_frames(m_service.get(kShotcutAnimOutProperty))) {
         m_service.set(kShotcutAnimOutProperty, m_service.frames_to_time(value, mlt_time_clock));
+        if (value == 0 && m_service.time_to_frames(m_service.get(kShotcutAnimInProperty)) == 0) {
+            // Clear simple keyframes
+            for (int i = 0; i < m_metadata->keyframes()->parameterCount(); i++) {
+                QString name = m_metadata->keyframes()->parameter(i)->property();
+                Mlt::Animation anim = getAnimation(name);
+                if (anim.is_valid() && anim.key_count() > 0) {
+                    QString value;
+                    // The first keyframe value should be the "middle" simple keyframe
+                    value = m_service.anim_get(qUtf8Printable(name), 0);
+                    m_service.clear(qUtf8Printable(name));
+                    m_service.set(qUtf8Printable(name), qUtf8Printable(value));
+                }
+            }
+        }
+        updateUndoCommand(kShotcutAnimOutProperty);
         emit animateOutChanged();
     }
+}
+
+void QmlFilter::clearAnimateInOut()
+{
+    bool inChanged = false;
+    bool outChanged = false;
+    if (0 != m_service.time_to_frames(m_service.get(kShotcutAnimInProperty))) {
+        m_service.set(kShotcutAnimInProperty, m_service.frames_to_time(0, mlt_time_clock));
+        inChanged = true;
+    }
+    if (0 != m_service.time_to_frames(m_service.get(kShotcutAnimOutProperty))) {
+        m_service.set(kShotcutAnimOutProperty, m_service.frames_to_time(0, mlt_time_clock));
+        outChanged = true;
+    }
+    if (inChanged)
+        emit animateInChanged();
+    if (outChanged)
+        emit animateOutChanged();
 }
 
 int QmlFilter::duration()
@@ -554,7 +658,7 @@ int QmlFilter::duration()
     return out() - in() + 1;
 }
 
-Mlt::Animation QmlFilter::getAnimation(const QString& name)
+Mlt::Animation QmlFilter::getAnimation(const QString &name)
 {
     if (m_service.is_valid()) {
         if (!m_service.get_animation(qUtf8Printable(name))) {
@@ -566,18 +670,18 @@ Mlt::Animation QmlFilter::getAnimation(const QString& name)
     return Mlt::Animation();
 }
 
-int QmlFilter::keyframeCount(const QString& name)
+int QmlFilter::keyframeCount(const QString &name)
 {
     return getAnimation(name).key_count();
 }
 
-void QmlFilter::resetProperty(const QString& name)
+void QmlFilter::resetProperty(const QString &name)
 {
     m_service.clear(qUtf8Printable(name));
-    emit changed();
+    emit changed(name.toUtf8().constData());
 }
 
-void QmlFilter::clearSimpleAnimation(const QString& name)
+void QmlFilter::clearSimpleAnimation(const QString &name)
 {
     // Reset the animation if there are no keyframes yet.
     if (animateIn() <= 0 && animateOut() <= 0 && keyframeCount(name) <= 0)
@@ -600,7 +704,7 @@ void QmlFilter::preset(const QString &name)
     bool isYaml = false;
     QFile presetFile(fileName);
     if (presetFile.open(QIODevice::ReadOnly)) {
-        if(presetFile.readLine(4) == "---") {
+        if (presetFile.readLine(4) == "---") {
             isYaml = true;
         }
         presetFile.close();
@@ -608,14 +712,14 @@ void QmlFilter::preset(const QString &name)
         presetFile.setFileName(dir.filePath(name));
         if (presetFile.open(QIODevice::ReadOnly)) {
             fileName = dir.filePath(name);
-            if(presetFile.readLine(4) == "---") {
+            if (presetFile.readLine(4) == "---") {
                 isYaml = true;
             }
             presetFile.close();
         }
     }
 
-    if(isYaml) {
+    if (isYaml) {
         // Load from YAML file.
         QScopedPointer<Mlt::Properties> properties(Mlt::Properties::parse_yaml(qUtf8Printable(fileName)));
         if (properties && properties->is_valid()) {
@@ -641,10 +745,10 @@ void QmlFilter::preset(const QString &name)
 
 QString QmlFilter::objectNameOrService()
 {
-    return m_metadata->objectName().isEmpty()? m_metadata->mlt_service() : m_metadata->objectName();
+    return m_metadata->objectName().isEmpty() ? m_metadata->mlt_service() : m_metadata->objectName();
 }
 
-int QmlFilter::keyframeIndex(Mlt::Animation& animation, int position)
+int QmlFilter::keyframeIndex(Mlt::Animation &animation, int position)
 {
     int result = -1;
     if (animation.is_valid()) {
@@ -659,7 +763,122 @@ int QmlFilter::keyframeIndex(Mlt::Animation& animation, int position)
     return result;
 }
 
-mlt_keyframe_type QmlFilter::getKeyframeType(Mlt::Animation& animation, int position, mlt_keyframe_type defaultType)
+void QmlFilter::startUndoTracking()
+{
+    m_previousState = Mlt::Properties();
+    m_previousState.inherit(m_service);
+    if (!m_previousState.property_exists(kShotcutAnimInProperty)) {
+        m_previousState.set(kShotcutAnimInProperty, 0);
+    }
+    if (!m_previousState.property_exists(kShotcutAnimOutProperty)) {
+        m_previousState.set(kShotcutAnimOutProperty, 0);
+    }
+}
+
+void QmlFilter::startUndoParameterCommand(const QString &desc)
+{
+    if (!m_previousState.count()) {
+//        LOG_DEBUG() << "Undo tracking has not started yet";
+        return;
+    }
+    m_changeInProgress++;
+    if (m_changeInProgress > 1) {
+//        LOG_DEBUG() << "Nested change command" << m_changeInProgress;
+        return;
+    }
+    auto command = new Filter::UndoParameterCommand(m_metadata->name(),
+                                                    MAIN.filterController(), MAIN.filterController()->currentIndex(), m_previousState, desc);
+    MAIN.undoStack()->push(command);
+}
+
+void QmlFilter::startUndoAddKeyframeCommand()
+{
+    if (!m_previousState.count()) {
+//        LOG_DEBUG() << "Undo tracking has not started yet";
+        return;
+    }
+    m_changeInProgress++;
+    if (m_changeInProgress > 1) {
+//        LOG_DEBUG() << "Nested change command" << m_changeInProgress;
+        return;
+    }
+    auto command = new Filter::UndoAddKeyframeCommand(m_metadata->name(),
+                                                      MAIN.filterController(), MAIN.filterController()->currentIndex(), m_previousState);
+    MAIN.undoStack()->push(command);
+}
+
+void QmlFilter::startUndoRemoveKeyframeCommand()
+{
+    if (!m_previousState.count()) {
+//        LOG_DEBUG() << "Undo tracking has not started yet";
+        return;
+    }
+    m_changeInProgress++;
+    if (m_changeInProgress > 1) {
+//        LOG_DEBUG() << "Nested change command" << m_changeInProgress;
+        return;
+    }
+    auto command = new Filter::UndoRemoveKeyframeCommand(
+        m_metadata->name(), MAIN.filterController(), MAIN.filterController()->currentIndex(),
+        m_previousState);
+    MAIN.undoStack()->push(command);
+}
+
+void QmlFilter::startUndoModifyKeyframeCommand(int paramIndex, int keyframeIndex)
+{
+    if (!m_previousState.count()) {
+//        LOG_DEBUG() << "Undo tracking has not started yet";
+        return;
+    }
+    m_changeInProgress++;
+    if (m_changeInProgress > 1) {
+        //        LOG_DEBUG() << "Nested change command" << m_changeInProgress;
+        return;
+    }
+    auto command = new Filter::UndoModifyKeyframeCommand(
+        m_metadata->name(), MAIN.filterController(), MAIN.filterController()->currentIndex(),
+        m_previousState, paramIndex, keyframeIndex);
+    MAIN.undoStack()->push(command);
+}
+
+void QmlFilter::updateUndoCommand(const QString &name)
+{
+    if (!m_previousState.count()) {
+//        LOG_DEBUG() << "Undo tracking has not started yet";
+        return;
+    }
+    if (!m_changeInProgress) {
+        startUndoParameterCommand(QStringLiteral());
+    }
+
+    const QUndoCommand *lastCommand = MAIN.undoStack()->command(MAIN.undoStack()->count() - 1);
+    Filter::UndoParameterCommand *command = dynamic_cast<Filter::UndoParameterCommand *>
+                                            (const_cast<QUndoCommand *>(lastCommand));
+    if (command) {
+        // Update the change that is already in progress
+        command->update(name);
+    } else {
+        LOG_ERROR() << "Unable to find command in progress";
+        return;
+    }
+    m_previousState.pass_property(m_service, name.toUtf8().constData());
+}
+
+void QmlFilter::endUndoCommand()
+{
+    if (!m_previousState.count()) {
+//        LOG_DEBUG() << "Undo tracking has not started yet";
+        return;
+    }
+    if (!m_changeInProgress) {
+        LOG_ERROR() << "Change is not in progress";
+        return;
+    }
+    m_changeInProgress--;
+}
+
+mlt_keyframe_type QmlFilter::getKeyframeType(Mlt::Animation &animation, int position,
+                                             mlt_keyframe_type defaultType)
 {
     mlt_keyframe_type result = mlt_keyframe_linear;
     if (animation.is_valid()) {
@@ -667,8 +886,9 @@ mlt_keyframe_type QmlFilter::getKeyframeType(Mlt::Animation& animation, int posi
         if (animation.is_key(position)) {
             existingType = animation.key_get_type(keyframeIndex(animation, position));
         } else if (defaultType < 0) {
-            int previous = animation.previous_key(position);
-            if (previous >= 0)
+            int previous = 0;
+            bool error = animation.previous_key(position, previous);
+            if (!error)
                 existingType = animation.keyframe_type(previous);
         }
         if (existingType >= 0)
@@ -677,27 +897,39 @@ mlt_keyframe_type QmlFilter::getKeyframeType(Mlt::Animation& animation, int posi
     return result;
 }
 
-int QmlFilter::getNextKeyframePosition(const QString& name, int position)
+int QmlFilter::getKeyFrameType(const QString &name, int keyIndex)
+{
+    Mlt::Animation animation = getAnimation(name);
+    return (int)animation.key_get_type(keyIndex);
+}
+
+void QmlFilter::setKeyFrameType(const QString &name, int keyIndex, int type)
+{
+    Mlt::Animation animation = getAnimation(name);
+    animation.key_set_type(keyIndex, (mlt_keyframe_type)type);
+}
+
+int QmlFilter::getNextKeyframePosition(const QString &name, int position)
 {
     int result = -1;
     Mlt::Animation animation = getAnimation(name);
     if (animation.is_valid()) {
-        result = animation.next_key(animation.is_key(position) ? position + 1: position);
+        animation.next_key(animation.is_key(position) ? position + 1 : position, result);
     }
     return result;
 }
 
-int QmlFilter::getPrevKeyframePosition(const QString& name, int position)
+int QmlFilter::getPrevKeyframePosition(const QString &name, int position)
 {
     int result = -1;
     Mlt::Animation animation = getAnimation(name);
     if (animation.is_valid()) {
-        result = animation.previous_key(animation.is_key(position) ? position - 1: position);
+        animation.previous_key(animation.is_key(position) ? position - 1 : position, result);
     }
     return result;
 }
 
-bool QmlFilter::isAtLeastVersion(const QString& version)
+bool QmlFilter::isAtLeastVersion(const QString &version)
 {
     QVersionNumber v1 = QVersionNumber::fromString(version);
     QVersionNumber v2 = QVersionNumber::fromString(m_metadata->property("version").toString());
@@ -711,25 +943,64 @@ void QmlFilter::deselect()
 
 bool QmlFilter::allowTrim() const
 {
-    return const_cast<QmlMetadata*>(m_metadata)->keyframes()->allowTrim();
+    if (m_metadata && m_metadata->keyframes())
+        return m_metadata->keyframes()->allowTrim();
+    return false;
 }
 
 bool QmlFilter::allowAnimateIn() const
 {
-    return const_cast<QmlMetadata*>(m_metadata)->keyframes()->allowAnimateIn();
+    if (m_metadata && m_metadata->keyframes())
+        return m_metadata->keyframes()->allowAnimateIn();
+    return false;
 }
 
 bool QmlFilter::allowAnimateOut() const
 {
-    return const_cast<QmlMetadata*>(m_metadata)->keyframes()->allowAnimateOut();
+    if (m_metadata && m_metadata->keyframes())
+        return m_metadata->keyframes()->allowAnimateOut();
+    return false;
 }
 
-AnalyzeDelegate::AnalyzeDelegate(Mlt::Filter& filter)
-    : QObject(0)
-    , m_uuid(QUuid::createUuid())
-    , m_serviceName(filter.get("mlt_service"))
+void QmlFilter::copyParameters()
 {
-    filter.set(kShotcutHashProperty, m_uuid.toByteArray().data());
+    auto name = "color";
+    Mlt::Producer dummy(MLT.profile(), name);
+    dummy.inherit(m_service);
+    dummy.set("mlt_service", name);
+    QGuiApplication::clipboard()->setText(MLT.XML(&dummy));
+}
+
+void QmlFilter::pasteParameters(const QStringList &propertyNames)
+{
+    auto xml = QGuiApplication::clipboard()->text();
+    Mlt::Producer producer(MLT.profile(), "xml-string", xml.toUtf8().constData());
+    if (!producer.is_valid()) {
+        LOG_WARNING() << "failed to parse MLT XML on clipboard" << xml;
+        return;
+    }
+    auto isChanged = false;
+    for (const auto &name : propertyNames) {
+        if (producer.property_exists(name.toUtf8().constData())) {
+            LOG_DEBUG() << name << "=" << producer.get(name.toUtf8().constData());
+            m_service.pass_property(producer, name.toUtf8().constData());
+            isChanged = true;
+            emit changed(name);
+        }
+    }
+    if (isChanged)
+        emit changed();
+}
+
+void QmlFilter::crop(const QRectF &rect)
+{
+    MAIN.cropSource(rect);
+}
+
+AnalyzeDelegate::AnalyzeDelegate(Mlt::Filter &filter)
+    : QObject(nullptr)
+    , m_uuid(filter.get(kShotcutHashProperty))
+{
 }
 
 class FindFilterParser : public Mlt::Parser
@@ -743,35 +1014,90 @@ public:
         : Mlt::Parser()
         , m_uuid(uuid)
     {}
-    
-    QList<Mlt::Filter>& filters() { return m_filters; }
-    
-    int on_start_filter(Mlt::Filter *filter) {
+
+    QList<Mlt::Filter> &filters()
+    {
+        return m_filters;
+    }
+
+    int on_start_filter(Mlt::Filter *filter)
+    {
         QByteArray uuid = filter->get(kShotcutHashProperty);
         if (uuid == m_uuid.toByteArray())
             m_filters << Mlt::Filter(*filter);
         return 0;
     }
-    int on_start_producer(Mlt::Producer*) { return 0; }
-    int on_end_producer(Mlt::Producer*) { return 0; }
-    int on_start_playlist(Mlt::Playlist*) { return 0; }
-    int on_end_playlist(Mlt::Playlist*) { return 0; }
-    int on_start_tractor(Mlt::Tractor*) { return 0; }
-    int on_end_tractor(Mlt::Tractor*) { return 0; }
-    int on_start_multitrack(Mlt::Multitrack*) { return 0; }
-    int on_end_multitrack(Mlt::Multitrack*) { return 0; }
-    int on_start_track() { return 0; }
-    int on_end_track() { return 0; }
-    int on_end_filter(Mlt::Filter*) { return 0; }
-    int on_start_transition(Mlt::Transition*) { return 0; }
-    int on_end_transition(Mlt::Transition*) { return 0; }
-    int on_start_chain(Mlt::Chain*) { return 0; }
-    int on_end_chain(Mlt::Chain*) { return 0; }
-    int on_start_link(Mlt::Link*) { return 0; }
-    int on_end_link(Mlt::Link*) { return 0; }
+    int on_start_producer(Mlt::Producer *)
+    {
+        return 0;
+    }
+    int on_end_producer(Mlt::Producer *)
+    {
+        return 0;
+    }
+    int on_start_playlist(Mlt::Playlist *)
+    {
+        return 0;
+    }
+    int on_end_playlist(Mlt::Playlist *)
+    {
+        return 0;
+    }
+    int on_start_tractor(Mlt::Tractor *)
+    {
+        return 0;
+    }
+    int on_end_tractor(Mlt::Tractor *)
+    {
+        return 0;
+    }
+    int on_start_multitrack(Mlt::Multitrack *)
+    {
+        return 0;
+    }
+    int on_end_multitrack(Mlt::Multitrack *)
+    {
+        return 0;
+    }
+    int on_start_track()
+    {
+        return 0;
+    }
+    int on_end_track()
+    {
+        return 0;
+    }
+    int on_end_filter(Mlt::Filter *)
+    {
+        return 0;
+    }
+    int on_start_transition(Mlt::Transition *)
+    {
+        return 0;
+    }
+    int on_end_transition(Mlt::Transition *)
+    {
+        return 0;
+    }
+    int on_start_chain(Mlt::Chain *)
+    {
+        return 0;
+    }
+    int on_end_chain(Mlt::Chain *)
+    {
+        return 0;
+    }
+    int on_start_link(Mlt::Link *)
+    {
+        return 0;
+    }
+    int on_end_link(Mlt::Link *)
+    {
+        return 0;
+    }
 };
 
-void AnalyzeDelegate::updateJob(EncodeJob* job, const QString& results)
+void AnalyzeDelegate::updateJob(EncodeJob *job, const QString &results)
 {
     bool isUpdated = false;
 
@@ -817,7 +1143,7 @@ void AnalyzeDelegate::updateJob(EncodeJob* job, const QString& results)
             LOG_INFO() << "updated pending job" << job->label() << "with results:" << results;
         }
     }
-    
+
     if (isUpdated) {
         // Save the new XML.
         file.open(QIODevice::WriteOnly);
@@ -832,15 +1158,15 @@ void AnalyzeDelegate::onAnalyzeFinished(AbstractJob *job, bool isSuccess)
     QString fileName = job->objectName();
 
     if (isSuccess) {
-        QString results = resultsFromXml(fileName, m_serviceName);
+        QString results = resultsFromXml(fileName);
         if (!results.isEmpty()) {
             // look for filters by UUID in each pending export job.
-            foreach (AbstractJob* job, JOBS.jobs()) {
+            foreach (AbstractJob *job, JOBS.jobs()) {
                 if (!job->ran() && typeid(*job) == typeid(EncodeJob)) {
-                    updateJob(dynamic_cast<EncodeJob*>(job), results);
+                    updateJob(dynamic_cast<EncodeJob *>(job), results);
                 }
             }
-    
+
             // Locate filters in memory by UUID.
             if (MAIN.isMultitrackValid()) {
                 FindFilterParser graphParser(m_uuid);
@@ -854,7 +1180,7 @@ void AnalyzeDelegate::onAnalyzeFinished(AbstractJob *job, bool isSuccess)
                 foreach (Mlt::Filter filter, graphParser.filters())
                     updateFilter(filter, results);
             }
-            Mlt::Producer producer(MLT.isClip()? MLT.producer() : MLT.savedProducer());
+            Mlt::Producer producer(MLT.isClip() ? MLT.producer() : MLT.savedProducer());
             if (producer.is_valid()) {
                 FindFilterParser graphParser(m_uuid);
                 graphParser.start(producer);
@@ -872,7 +1198,7 @@ void AnalyzeDelegate::onAnalyzeFinished(AbstractJob *job, bool isSuccess)
     deleteLater();
 }
 
-QString AnalyzeDelegate::resultsFromXml(const QString& fileName, const QString& serviceName)
+QString AnalyzeDelegate::resultsFromXml(const QString &fileName)
 {
     // parse the xml
     QFile file(fileName);
@@ -889,8 +1215,8 @@ QString AnalyzeDelegate::resultsFromXml(const QString& fileName, const QString& 
         QDomNodeList properties = filterNode.toElement().elementsByTagName("property");
         for (int j = 0; j < properties.size(); j++) {
             QDomNode propertyNode = properties.at(j);
-            if (propertyNode.attributes().namedItem("name").toAttr().value() == "mlt_service"
-                    && propertyNode.toElement().text() == serviceName) {
+            if (propertyNode.attributes().namedItem("name").toAttr().value() == kShotcutHashProperty
+                    && propertyNode.toElement().text() == m_uuid.toString()) {
                 found = true;
                 break;
             }
@@ -908,10 +1234,30 @@ QString AnalyzeDelegate::resultsFromXml(const QString& fileName, const QString& 
     return QString();
 }
 
-void AnalyzeDelegate::updateFilter(Mlt::Filter& filter, const QString& results)
+void AnalyzeDelegate::updateFilter(Mlt::Filter &filter, const QString &results)
 {
     filter.set("results", qUtf8Printable(results));
     filter.set("reload", 1);
     filter.clear(kShotcutHashProperty);
     LOG_INFO() << "updated filter" << filter.get("mlt_service") << "with results:" << results;
+
+    if (QString::fromLatin1("opencv.tracker") == filter.get("mlt_service")) {
+        auto model = MAIN.filterController()->motionTrackerModel();
+        if (model) {
+            auto name = QString::fromUtf8(filter.get(kTrackNameProperty));
+            if (name.isEmpty()) {
+                name = model->nextName();
+                filter.set(kTrackNameProperty, name.toUtf8().constData());
+            }
+            auto key = model->keyForFilter(&filter);
+            if (key.isEmpty()) {
+                key = model->add(name, results);
+                if (!key.isEmpty()) {
+                    filter.set(kUuidProperty, key.toUtf8().constData());
+                }
+            } else {
+                model->updateData(key, results);
+            }
+        }
+    }
 }

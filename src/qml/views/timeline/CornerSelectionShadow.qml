@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020 Meltytech, LLC
+ * Copyright (c) 2015-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,32 +14,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.12
+import QtQuick
 
 Item {
     id: root
 
-    property Item clip
+    property Item clipN
     property bool mirrorGradient: false
 
     width: 100
-    height: clip ? clip.height : 0
-    Behavior on opacity { NumberAnimation { duration: 100 } }
+    height: clipN ? clipN.height : 0
 
     Rectangle {
         id: shadowGradient
+
         width: parent.height
         height: parent.width
         anchors.centerIn: parent
         rotation: mirrorGradient ? -90 : 90
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 1.0; color: "white" }
-        }
+
         PulsingAnimation {
             target: shadowGradient
             running: root.opacity
+        }
+
+        gradient: Gradient {
+            GradientStop {
+                position: 0
+                color: "transparent"
+            }
+
+            GradientStop {
+                position: 1
+                color: "white"
+            }
+        }
+    }
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: 100
         }
     }
 }

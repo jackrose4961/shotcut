@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Meltytech, LLC
+ * Copyright (c) 2018-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,16 +19,17 @@
 #include "ui_listselectiondialog.h"
 #include <QListWidget>
 
-ListSelectionDialog::ListSelectionDialog(const QStringList& list, QWidget *parent) :
+ListSelectionDialog::ListSelectionDialog(const QStringList &list, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ListSelectionDialog)
 {
     ui->setupUi(this);
-    foreach (const QString text, list) {
-        QListWidgetItem* item = new QListWidgetItem(text, ui->listWidget);
+    for (auto &text : list) {
+        QListWidgetItem *item = new QListWidgetItem(text, ui->listWidget);
         item->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         item->setCheckState(Qt::Unchecked);
-        connect(ui->listWidget, SIGNAL(itemActivated(QListWidgetItem*)), SLOT(onItemActivated(QListWidgetItem*)));
+        connect(ui->listWidget, SIGNAL(itemActivated(QListWidgetItem *)),
+                SLOT(onItemActivated(QListWidgetItem *)));
     }
 }
 
@@ -37,11 +38,28 @@ ListSelectionDialog::~ListSelectionDialog()
     delete ui;
 }
 
-void ListSelectionDialog::setSelection(const QStringList& selection)
+void ListSelectionDialog::setColors(const QStringList &list)
+{
+    ui->listWidget->setAlternatingRowColors(false);
+    ui->listWidget->setSortingEnabled(false);
+    for (auto &text : list) {
+        QListWidgetItem *item = new QListWidgetItem(text, ui->listWidget);
+        item->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        connect(ui->listWidget, SIGNAL(itemActivated(QListWidgetItem *)),
+                SLOT(onItemActivated(QListWidgetItem *)));
+        QColor color(text);
+        item->setCheckState(Qt::Checked);
+        if (color.isValid()) {
+            item->setBackground(color);
+        }
+    }
+}
+
+void ListSelectionDialog::setSelection(const QStringList &selection)
 {
     int n = ui->listWidget->count();
     for (int i = 0; i < n; ++i) {
-        QListWidgetItem* item = ui->listWidget->item(i);
+        QListWidgetItem *item = ui->listWidget->item(i);
         if (selection.indexOf(item->text()) > -1)
             item->setCheckState(Qt::Checked);
     }
@@ -52,7 +70,7 @@ QStringList ListSelectionDialog::selection() const
     QStringList result;
     int n = ui->listWidget->count();
     for (int i = 0; i < n; ++i) {
-        QListWidgetItem* item = ui->listWidget->item(i);
+        QListWidgetItem *item = ui->listWidget->item(i);
         if (item->checkState() == Qt::Checked)
             result << item->text();
     }
@@ -64,7 +82,7 @@ QDialogButtonBox *ListSelectionDialog::buttonBox() const
     return ui->buttonBox;
 }
 
-void ListSelectionDialog::onItemActivated(QListWidgetItem* item)
+void ListSelectionDialog::onItemActivated(QListWidgetItem *item)
 {
     item->setCheckState(item->checkState() == Qt::Checked ? Qt::Unchecked : Qt::Checked);
 }

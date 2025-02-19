@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2020 Meltytech, LLC
+ * Copyright (c) 2011-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "scrubbar.h"
 #include "mltcontroller.h"
+#include "settings.h"
 
 #include <QToolTip>
 #include <QtWidgets>
@@ -37,6 +38,8 @@ ScrubBar::ScrubBar(QWidget *parent)
     , m_margin(14) /// left and right margins
     , m_activeControl(CONTROL_NONE)
     , m_timecodeWidth(0)
+    , m_loopStart(-1)
+    , m_loopEnd(-1)
 {
     setMouseTracking(true);
     setMinimumHeight(fontMetrics().height() + selectionSize);
@@ -45,9 +48,10 @@ ScrubBar::ScrubBar(QWidget *parent)
 void ScrubBar::setScale(int maximum)
 {
     if (!m_timecodeWidth) {
-        const int fontSize = font().pointSize() - (font().pointSize() > 10? 2 : (font().pointSize() > 8? 1 : 0));
+        const int fontSize = font().pointSize() - (font().pointSize() > 10 ? 2 :
+                                                   (font().pointSize() > 8 ? 1 : 0));
         setFont(QFont(font().family(), fontSize * devicePixelRatioF()));
-        m_timecodeWidth = fontMetrics().width("00:00:00:00") / devicePixelRatioF();
+        m_timecodeWidth = fontMetrics().horizontalAdvance("00:00:00:00") / devicePixelRatioF();
     }
     m_max = maximum;
     /// m_scale is the pixels per frame ratio
@@ -105,9 +109,16 @@ void ScrubBar::setMarkers(const QList<int> &list)
     updatePixmap();
 }
 
-void ScrubBar::mousePressEvent(QMouseEvent * event)
+void ScrubBar::setLoopRange(int start, int end)
 {
-    int x = event->x() - m_margin;
+    m_loopStart = start;
+    m_loopEnd = end;
+    updatePixmap();
+}
+
+void ScrubBar::mousePressEvent(QMouseEvent *event)
+{
+    int x = event->position().x() - m_margin;
     int in = m_in * m_scale;
     int out = m_out * m_scale;
     int head = m_head * m_scale;
@@ -117,8 +128,7 @@ void ScrubBar::mousePressEvent(QMouseEvent * event)
         if (x >= in - 12 && x <= in + 6) {
             m_activeControl = CONTROL_IN;
             setInPoint(pos);
-        }
-        else if (x >= out - 6 && x <= out + 12) {
+        } else if (x >= out - 6 && x <= out + 12) {
             m_activeControl = CONTROL_OUT;
             setOutPoint(pos);
         }
@@ -133,18 +143,20 @@ void ScrubBar::mousePressEvent(QMouseEvent * event)
             update(m_margin + x - offset, 0, w + 2 * offset, height());
         }
     }
+    if (m_activeControl >= CONTROL_IN && !Settings.playerPauseAfterSeek())
+        emit paused(pos);
     emit seeked(pos);
 }
 
-void ScrubBar::mouseReleaseEvent(QMouseEvent * event)
+void ScrubBar::mouseReleaseEvent(QMouseEvent *event)
 {
     Q_UNUSED(event)
     m_activeControl = CONTROL_NONE;
 }
 
-void ScrubBar::mouseMoveEvent(QMouseEvent * event)
+void ScrubBar::mouseMoveEvent(QMouseEvent *event)
 {
-    int x = event->x() - m_margin;
+    int x = event->position().x() - m_margin;
     int pos = CLAMP(x / m_scale, 0, m_max);
 
     if (event->buttons() & Qt::LeftButton) {
@@ -160,11 +172,12 @@ void ScrubBar::mouseMoveEvent(QMouseEvent * event)
             update(m_margin + x - offset, 0, w + 2 * offset, height());
             m_head = pos;
         }
+        if (m_activeControl >= CONTROL_IN && !Settings.playerPauseAfterSeek())
+            emit paused(pos);
         emit seeked(pos);
-    }
-    else if (event->buttons() == Qt::NoButton && MLT.producer()) {
-        QString text = QString::fromLatin1(MLT.producer()->frames_to_time(pos));
-        QToolTip::showText(event->globalPos(), text);
+    } else if (event->buttons() == Qt::NoButton && MLT.producer()) {
+        QString text = QString::fromLatin1(MLT.producer()->frames_to_time(pos, Settings.timeFormat()));
+        QToolTip::showText(event->globalPosition().toPoint(), text);
     }
 }
 
@@ -208,7 +221,8 @@ void ScrubBar::paintEvent(QPaintEvent *e)
     // draw in point
     if (m_in > -1) {
         const int in = m_margin + m_in * m_scale;
-        pa.setPoints(3, in - selectionSize / 2, 0, in - selectionSize / 2, selectionSize - 1, in - 1, selectionSize / 2);
+        pa.setPoints(3, in - selectionSize / 2, 0, in - selectionSize / 2, selectionSize - 1, in - 1,
+                     selectionSize / 2);
         p.setBrush(palette().text().color());
         p.setPen(Qt::NoPen);
         p.drawPolygon(pa);
@@ -219,7 +233,8 @@ void ScrubBar::paintEvent(QPaintEvent *e)
     // draw out point
     if (m_out > -1) {
         const int out = m_margin + m_out * m_scale;
-        pa.setPoints(3, out + selectionSize / 2, 0, out + selectionSize / 2, selectionSize - 1, out, selectionSize / 2);
+        pa.setPoints(3, out + selectionSize / 2, 0, out + selectionSize / 2, selectionSize - 1, out,
+                     selectionSize / 2);
         p.setBrush(palette().text().color());
         p.setPen(Qt::NoPen);
         p.drawPolygon(pa);
@@ -295,12 +310,13 @@ void ScrubBar::updatePixmap()
     }
 
     // draw timecode
+    const auto timeFormat = Settings.timeFormat();
     if (l_interval > l_timecodeWidth && MLT.producer()) {
         int x = l_margin;
         for (int i = 0; x < l_width - l_margin - l_timecodeWidth; i++, x += l_interval) {
             int y = l_selectionSize + fontMetrics().ascent() - 2 * ratio;
             int frames = qRound(i * m_fps * m_secondsPerTick);
-            p.drawText(x + 2 * ratio, y, QString(MLT.producer()->frames_to_time(frames)).left(8));
+            p.drawText(x + 2 * ratio, y, QString(MLT.producer()->frames_to_time(frames, timeFormat)).left(8));
         }
     }
 
@@ -310,11 +326,20 @@ void ScrubBar::updatePixmap()
         foreach (int pos, m_markers) {
             int x = l_margin + pos * m_scale * ratio;
             QString s = QString::number(i++);
-            int markerWidth = fontMetrics().width(s) * 1.5;
+            int markerWidth = fontMetrics().horizontalAdvance(s) * 1.5;
             p.fillRect(x, 0, 1, l_height, palette().highlight().color());
-            p.fillRect(x - markerWidth/2, 0, markerWidth, markerHeight, palette().highlight().color());
-            p.drawText(x - markerWidth/3, markerHeight - 2 * ratio, s);
+            p.fillRect(x - markerWidth / 2, 0, markerWidth, markerHeight, palette().highlight().color());
+            p.drawText(x - markerWidth / 3, markerHeight - 2 * ratio, s);
         }
+    }
+
+    // draw loop range
+    if (m_loopStart > -1 && m_loopEnd > -1) {
+        const int start = m_loopStart * m_scale * ratio;
+        const int end = m_loopEnd * m_scale * ratio;
+        QColor loopColor = palette().highlight().color();
+        loopColor.setAlphaF(0.5);
+        p.fillRect(l_margin + start, l_height - 7 * ratio, end - start, l_height * ratio, loopColor);
     }
 
     p.end();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "mltcontroller.h"
 #include "controllers/filtercontroller.h"
 #include "models/attachedfiltersmodel.h"
-#include "glwidget.h"
+#include "videowidget.h"
 #include "settings.h"
 #include "util.h"
 #include <QApplication>
@@ -39,7 +39,7 @@
 #endif
 #include <limits>
 
-QmlApplication& QmlApplication::singleton()
+QmlApplication &QmlApplication::singleton()
 {
     static QmlApplication instance;
     return instance;
@@ -84,8 +84,8 @@ QColor QmlApplication::toolTipTextColor()
 
 QString QmlApplication::OS()
 {
-#if defined(Q_OS_OSX)
-    return "OS X";
+#if defined(Q_OS_MAC)
+    return "macOS";
 #elif defined(Q_OS_LINUX)
     return "Linux";
 #elif defined(Q_OS_UNIX)
@@ -107,23 +107,49 @@ bool QmlApplication::hasFiltersOnClipboard()
     return MLT.hasFiltersOnClipboard();
 }
 
-void QmlApplication::copyFilters()
+void QmlApplication::copyEnabledFilters()
 {
-    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(MAIN.filterController()->attachedModel()->producer()));
-    MLT.copyFilters(producer.data());
+    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(
+                                               MAIN.filterController()->attachedModel()->producer()));
+    MLT.copyFilters(producer.data(), MLT.FILTER_INDEX_ENABLED);
+    QGuiApplication::clipboard()->setText(MLT.filtersClipboardXML());
+    emit QmlApplication::singleton().filtersCopied();
+}
+
+void QmlApplication::copyAllFilters()
+{
+    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(
+                                               MAIN.filterController()->attachedModel()->producer()));
+    MLT.copyFilters(producer.data(), MLT.FILTER_INDEX_ENABLED);
+    QGuiApplication::clipboard()->setText(MLT.filtersClipboardXML());
+    emit QmlApplication::singleton().filtersCopied();
+}
+
+void QmlApplication::copyCurrentFilter()
+{
+    int currentIndex = MAIN.filterController()->currentIndex();
+    if (currentIndex < 0) {
+        MAIN.showStatusMessage(tr("Select a filter to copy"));
+        return;
+    }
+    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(
+                                               MAIN.filterController()->attachedModel()->producer()));
+    MLT.copyFilters(producer.data(), currentIndex);
     QGuiApplication::clipboard()->setText(MLT.filtersClipboardXML());
     emit QmlApplication::singleton().filtersCopied();
 }
 
 void QmlApplication::pasteFilters()
 {
-    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(MAIN.filterController()->attachedModel()->producer()));
+    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(
+                                               MAIN.filterController()->attachedModel()->producer()));
     if (confirmOutputFilter()) {
         QString s = QGuiApplication::clipboard()->text();
         if (MLT.isMltXml(s)) {
             Mlt::Profile profile(kDefaultMltProfile);
             Mlt::Producer filtersProducer(profile, "xml-string", s.toUtf8().constData());
-            if (filtersProducer.is_valid() && filtersProducer.filter_count() > 0 && filtersProducer.get_int(kShotcutFiltersClipboard)) {
+            if (filtersProducer.is_valid() && filtersProducer.filter_count() > 0
+                    && filtersProducer.get_int(kShotcutFiltersClipboard)) {
                 MLT.pasteFilters(producer.get(), &filtersProducer);
             } else {
                 MLT.pasteFilters(producer.data());
@@ -131,16 +157,25 @@ void QmlApplication::pasteFilters()
         } else {
             MLT.pasteFilters(producer.data());
         }
-        emit QmlApplication::singleton().filtersPasted(MAIN.filterController()->attachedModel()->producer());
+        emit QmlApplication::singleton().filtersPasted(
+            MAIN.filterController()->attachedModel()->producer());
     }
 }
 
-QString QmlApplication::timecode(int frames)
+QString QmlApplication::clockFromFrames(int frames)
 {
-    if (MLT.producer() && MLT.producer()->is_valid())
-        return MLT.producer()->frames_to_time(frames, mlt_time_smpte_df);
-    else
-        return QString();
+    if (MLT.producer()) {
+        return MLT.producer()->frames_to_time(frames, Settings.timeFormat());
+    }
+    return QString();
+}
+
+QString QmlApplication::timeFromFrames(int frames)
+{
+    if (MLT.producer()) {
+        return MLT.producer()->frames_to_time(frames, Settings.timeFormat());
+    }
+    return QString();
 }
 
 int QmlApplication::audioChannels()
@@ -148,7 +183,7 @@ int QmlApplication::audioChannels()
     return MLT.audioChannels();
 }
 
-QString QmlApplication::getNextProjectFile(const QString& filename)
+QString QmlApplication::getNextProjectFile(const QString &filename)
 {
     QDir dir(MLT.projectFolder());
     if (!MLT.projectFolder().isEmpty() && dir.exists()) {
@@ -179,33 +214,28 @@ qreal QmlApplication::devicePixelRatio()
     return MAIN.devicePixelRatioF();
 }
 
-void QmlApplication::showStatusMessage(const QString& message, int timeoutSeconds)
+void QmlApplication::showStatusMessage(const QString &message, int timeoutSeconds)
 {
     MAIN.showStatusMessage(message, timeoutSeconds);
 }
 
 int QmlApplication::maxTextureSize()
 {
-    Mlt::GLWidget* glw = qobject_cast<Mlt::GLWidget*>(MLT.videoWidget());
-    return glw? glw->maxTextureSize() : 0;
+    auto *videoWidget = qobject_cast<Mlt::VideoWidget *>(MLT.videoWidget());
+    return videoWidget ? videoWidget->maxTextureSize() : 0;
 }
 
 bool QmlApplication::confirmOutputFilter()
 {
     bool result = true;
-    QScopedPointer<Mlt::Producer> producer(new Mlt::Producer(MAIN.filterController()->attachedModel()->producer()));
-    if (producer->is_valid()
-            && mlt_service_tractor_type == producer->type()
-            && !producer->get(kShotcutTransitionProperty)
-            && MAIN.filterController()->attachedModel()->rowCount() == 0
-            && Settings.askOutputFilter()) {
+    if (MAIN.filterController()->isOutputTrackSelected() && Settings.askOutputFilter()) {
         QMessageBox dialog(QMessageBox::Warning,
-           qApp->applicationName(),
-           tr("<p>Do you really want to add filters to <b>Output</b>?</p>"
-              "<p><b>Timeline > Output</b> is currently selected. "
-              "Adding filters to <b>Output</b> affects ALL clips in the "
-              "timeline including new ones that will be added.</p>"),
-           QMessageBox::No | QMessageBox::Yes, &MAIN);
+                           qApp->applicationName(),
+                           tr("<p>Do you really want to add filters to <b>Output</b>?</p>"
+                              "<p><b>Timeline > Output</b> is currently selected. "
+                              "Adding filters to <b>Output</b> affects ALL clips in the "
+                              "timeline including new ones that will be added.</p>"),
+                           QMessageBox::No | QMessageBox::Yes, &MAIN);
         dialog.setWindowModality(dialogModality());
         dialog.setDefaultButton(QMessageBox::No);
         dialog.setEscapeButton(QMessageBox::Yes);
@@ -225,9 +255,9 @@ QDir QmlApplication::dataDir()
     dir.cdUp();
     dir.cd("Resources");
 #else
-    #if defined(Q_OS_UNIX)
+#if defined(Q_OS_UNIX) || (defined(Q_OS_WIN) && defined(NODEPLOY))
     dir.cdUp();
-    #endif
+#endif
     dir.cd("share");
 #endif
     return dir;
@@ -236,4 +266,38 @@ QDir QmlApplication::dataDir()
 QColor QmlApplication::contrastingColor(QString color)
 {
     return Util::textColor(color);
+}
+
+QStringList QmlApplication::wipes()
+{
+    QStringList result;
+    const auto transitions = QString::fromLatin1("transitions");
+    QDir dir(Settings.appDataLocation());
+    if (!dir.exists(transitions)) {
+        dir.mkdir(transitions);
+    }
+    if (dir.cd(transitions)) {
+        for (auto &s : dir.entryList(QDir::Files | QDir::Readable)) {
+            result << dir.filePath(s);
+        }
+    }
+    return result;
+}
+
+bool QmlApplication::addWipe(const QString &filePath)
+{
+    const auto transitions = QString::fromLatin1("transitions");
+    QDir dir(Settings.appDataLocation());
+    if (!dir.exists(transitions)) {
+        dir.mkdir(transitions);
+    }
+    if (dir.cd(transitions)) {
+        return QFile::copy(filePath, dir.filePath(QFileInfo(filePath).fileName()));
+    }
+    return false;
+}
+
+bool QmlApplication::intersects(const QRectF &a, const QRectF &b)
+{
+    return a.intersects(b);
 }

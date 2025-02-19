@@ -32,20 +32,21 @@ FREI0R_REVISION=
 ENABLE_MOVIT=1
 SUBDIRS=
 MOVIT_HEAD=0
-MOVIT_REVISION="origin/shotcut"
+MOVIT_REVISION="origin/shotcut-opengl3"
 X264_HEAD=0
 X264_REVISION="origin/stable"
 X265_HEAD=0
 X265_REVISION="origin/stable"
 LIBVPX_HEAD=0
-LIBVPX_REVISION="v1.9.0"
+LIBVPX_REVISION="v1.15.0"
 LIBOPUS_HEAD=0
-LIBOPUS_REVISION="v1.3.1"
+LIBOPUS_REVISION="v1.5.2"
 ENABLE_SWH_PLUGINS=1
 FFMPEG_HEAD=0
-FFMPEG_REVISION="origin/release/4.4"
+FFMPEG_REVISION="origin/release/7.1"
 FFMPEG_SUPPORT_H264=1
 FFMPEG_SUPPORT_H265=1
+FFMPEG_SUPPORT_JACK=0
 FFMPEG_SUPPORT_LIBVPX=1
 FFMPEG_SUPPORT_THEORA=1
 FFMPEG_SUPPORT_MP3=1
@@ -58,6 +59,7 @@ FFMPEG_SUPPORT_QSV=1
 FFMPEG_SUPPORT_DAV1D=1
 FFMPEG_SUPPORT_AOM=1
 FFMPEG_SUPPORT_WEBP=1
+FFMPEG_SUPPORT_SVTAV1=1
 FFMPEG_SUPPORT_VMAF=1
 FFMPEG_ADDITIONAL_OPTIONS=
 ENABLE_VIDSTAB=1
@@ -71,21 +73,46 @@ SHOTCUT_REVISION=
 SHOTCUT_VERSION=$(date '+%y.%m.%d')
 ENABLE_RUBBERBAND=1
 RUBBERBAND_HEAD=0
-RUBBERBAND_REVISION="v1.9.1"
+RUBBERBAND_REVISION="v3.3.0"
 ENABLE_BIGSH0T=1
-BIGSH0T_HEAD=1
-BIGSH0T_REVISION=
+BIGSH0T_HEAD=0
+BIGSH0T_REVISION="8fe56f6d4e"
 ENABLE_ZIMG=1
-ZIMG_HEAD=1
-ZIMG_REVISION=
+ZIMG_HEAD=0
+ZIMG_REVISION="51c3c7f750c2af61955377faad56e3ba1b03589f"
 DAV1D_HEAD=0
-DAV1D_REVISION="0.9.2"
+DAV1D_REVISION="1.5.0"
 AOM_HEAD=0
-AOM_REVISION="v2.0.2"
+AOM_REVISION="v3.11.0"
+SVTAV1_HEAD=0
+SVTAV1_REVISION="v2.1.0"
 VMAF_HEAD=0
-VMAF_REVISION="v2.2.0"
-QT_VERSION_DEFAULT=5.15.2
-QT_VERSION_DARWIN=5.12.10
+VMAF_REVISION="v3.0.0"
+ENABLE_GLAXNIMATE=1
+GLAXNIMATE_HEAD=0
+GLAXNIMATE_REVISION="origin/v0.5.4"
+ENABLE_GOPRO2GPX=1
+ENABLE_OPENCV=1
+OPENCV_HEAD=0
+OPENCV_REVISION="4.10.0"
+ENABLE_LIBWEBP=1
+LIBWEBP_HEAD=0
+LIBWEBP_REVISION="v1.5.0"
+ENABLE_LIBSPATIALAUDIO=1
+LIBSPATIALAUDIO_HEAD=1
+LIBSPATIALAUDIO_REVISION=
+ENABLE_WHISPERCPP=1
+WHISPERCPP_HEAD=1
+WHISPERCPP_REVISION=
+NV_CODEC_REVISION="sdk/12.0"
+MFX_DISPATCH_REVISION="1.25"
+
+PYTHON_VERSION_DEFAULT=3.8
+PYTHON_VERSION_DARWIN=3.11
+PYTHON_VERSION=$(python3 --version | awk '{split($2, parts, "."); print parts[1] "." parts[2]}')
+
+QT_VERSION_DEFAULT=6.4.3
+QT_VERSION_DARWIN=6.8.1
 
 # QT_INCLUDE_DIR="$(pkg-config --variable=prefix QtCore)/include"
 QT_INCLUDE_DIR=${QTDIR:+${QTDIR}/include}
@@ -106,17 +133,6 @@ DEBUG=0
 # We need to set LANG to C to avoid e.g. svn from getting to funky
 export LANG=C
 
-# User CFLAGS and LDFLAGS sometimes prevent more recent local headers.
-# Also, you can adjust some flags here.
-if [ "$DEBUG_BUILD" = "1" ]; then
-    export CFLAGS=
-    export CXXFLAGS=
-else
-    export CFLAGS=-DNDEBUG
-    export CXXFLAGS=-DNDEBUG
-fi
-export LDFLAGS=
-
 ################################################################################
 # FUNCTION SECTION
 ################################################################################
@@ -129,7 +145,6 @@ function usage {
   echo "Where:"
   echo -e "\t-c config-file\tDefaults to $CONFIGFILE"
   echo -e "\t-a target-arch\tDefaults to $(uname -m)"
-  echo -e "\t-o target-os\tDefaults to $(uname -s); use Win32 or Win64 to cross-compile"
   echo -e "\t-s\t\tbuild SDK"
   echo -e "\t-t\t\tSpawn into sep. process"
   echo -e "\t-v shotcut-version\t\tSet the Shotcut version; defaults to $SHOTCUT_VERSION"
@@ -196,11 +211,17 @@ function to_key {
     movit)
       echo 5
     ;;
+    libspatialaudio)
+      echo 6
+    ;;
     shotcut)
       echo 7
     ;;
     ladspa)
       echo 8
+    ;;
+    OpenBLAS)
+      echo 9
     ;;
     vid.stab)
       echo 10
@@ -237,6 +258,27 @@ function to_key {
     ;;
     vmaf)
       echo 23
+    ;;
+    glaxnimate)
+      echo 24
+    ;;
+    gopro2gpx)
+      echo 25
+    ;;
+    opencv)
+      echo 26
+    ;;
+    opencv_contrib)
+      echo 27
+    ;;
+    libwebp)
+      echo 28
+    ;;
+    SVT-AV1)
+      echo 29
+    ;;
+    whisper.cpp)
+      echo 30
     ;;
     *)
       echo UNKNOWN
@@ -379,6 +421,17 @@ function read_configuration {
 # This is where the configuration options for each subproject is assembled
 function set_globals {
   trace "Entering set_globals @ = $@"
+
+  # Set debug flags
+  if [ "$DEBUG_BUILD" = "1" ]; then
+    export CFLAGS=
+    export CXXFLAGS=
+  else
+    export CFLAGS=-DNDEBUG
+    export CXXFLAGS=-DNDEBUG
+  fi
+  export LDFLAGS=
+
   # Set convenience variables.
   test "$TARGET_OS" = "" && TARGET_OS="$(uname -s)"
   test "$TARGET_ARCH" = "" && TARGET_ARCH="$(uname -m)"
@@ -452,8 +505,30 @@ function set_globals {
     if test "$FFMPEG_SUPPORT_AOM" = 1 && test "$AOM_HEAD" = 1 -o "$AOM_REVISION" != ""; then
         SUBDIRS="aom $SUBDIRS"
     fi
+    if test "$FFMPEG_SUPPORT_SVTAV1" = 1 && test "$SVTAV1_HEAD" = 1 -o "$SVTAV1_REVISION" != ""; then
+        SUBDIRS="SVT-AV1 $SUBDIRS"
+    fi
     if test "$FFMPEG_SUPPORT_VMAF" = 1 && test "$VMAF_HEAD" = 1 -o "$VMAF_REVISION" != ""; then
         SUBDIRS="vmaf $SUBDIRS"
+    fi
+    if test "$ENABLE_GLAXNIMATE" = 1 ; then
+        SUBDIRS="$SUBDIRS glaxnimate"
+    fi
+    if test "$ENABLE_GOPRO2GPX" = 1 ; then
+        SUBDIRS="$SUBDIRS gopro2gpx"
+    fi
+    if test "$ENABLE_OPENCV" = 1 ; then
+        SUBDIRS="opencv opencv_contrib $SUBDIRS"
+    fi
+    if test "$ENABLE_LIBWEBP" = 1  && test "$LIBWEBP_HEAD" = 1 -o "$LIBWEBP_REVISION" != ""; then
+        SUBDIRS="libwebp $SUBDIRS"
+    fi
+    if test "$ENABLE_LIBSPATIALAUDIO" = 1  && test "$LIBSPATIALAUDIO_HEAD" = 1 -o "$LIBSPATIALAUDIO_REVISION" != ""; then
+        SUBDIRS="libspatialaudio $SUBDIRS"
+    fi
+    if test "$ENABLE_WHISPERCPP" = 1  && test "$WHISPERCPP_HEAD" = 1 -o "$WHISPERCPP_REVISION" != ""; then
+        SUBDIRS="whisper.cpp $SUBDIRS"
+        [ "$TARGET_OS" != "Darwin" ] && SUBDIRS="OpenBLAS $SUBDIRS"
     fi
   fi
 
@@ -480,26 +555,35 @@ function set_globals {
   debug "SUBDIRS = $SUBDIRS"
 
   # REPOLOCS Array holds the repo urls
-  REPOLOCS[0]="git://github.com/FFmpeg/FFmpeg.git"
-  REPOLOCS[1]="git://github.com/mltframework/mlt.git"
-  REPOLOCS[2]="git://github.com/dyne/frei0r.git"
-  REPOLOCS[3]="git://github.com/mirror/x264.git"
+  REPOLOCS[0]="https://github.com/FFmpeg/FFmpeg.git"
+  REPOLOCS[1]="https://github.com/mltframework/mlt.git"
+  REPOLOCS[2]="https://github.com/dyne/frei0r.git"
+  REPOLOCS[3]="https://github.com/mirror/x264.git"
   REPOLOCS[4]="https://chromium.googlesource.com/webm/libvpx.git"
-  REPOLOCS[5]="git://github.com/ddennedy/movit.git"
-  REPOLOCS[7]="git://github.com/mltframework/shotcut.git"
-  REPOLOCS[8]="git://github.com/swh/ladspa.git"
-  REPOLOCS[10]="git://github.com/georgmartius/vid.stab.git"
+  REPOLOCS[5]="https://github.com/ddennedy/movit.git"
+  REPOLOCS[6]="https://github.com/videolabs/libspatialaudio.git"
+  REPOLOCS[7]="https://github.com/mltframework/shotcut.git"
+  REPOLOCS[8]="https://github.com/swh/ladspa.git"
+  REPOLOCS[9]="https://github.com/OpenMathLib/OpenBLAS.git"
+  REPOLOCS[10]="https://github.com/georgmartius/vid.stab.git"
   REPOLOCS[12]="https://github.com/xiph/opus.git"
   REPOLOCS[13]="https://github.com/videolan/x265"
-  REPOLOCS[15]="git://github.com/FFmpeg/nv-codec-headers.git"
-  REPOLOCS[16]="git://github.com/GPUOpen-LibrariesAndSDKs/AMF.git"
-  REPOLOCS[17]="git://github.com/lu-zero/mfx_dispatch.git"
-  REPOLOCS[18]="git://github.com/breakfastquay/rubberband.git"
+  REPOLOCS[15]="https://github.com/FFmpeg/nv-codec-headers.git"
+  REPOLOCS[16]="https://github.com/GPUOpen-LibrariesAndSDKs/AMF.git"
+  REPOLOCS[17]="https://github.com/lu-zero/mfx_dispatch.git"
+  REPOLOCS[18]="https://github.com/breakfastquay/rubberband.git"
   REPOLOCS[19]="https://bitbucket.org/leo_sutic/bigsh0t.git"
   REPOLOCS[20]="https://github.com/sekrit-twc/zimg.git"
   REPOLOCS[21]="https://github.com/videolan/dav1d"
   REPOLOCS[22]="https://aomedia.googlesource.com/aom"
   REPOLOCS[23]="https://github.com/Netflix/vmaf.git"
+  REPOLOCS[24]="https://gitlab.com/ddennedy/glaxnimate.git"
+  REPOLOCS[25]="https://github.com/ddennedy/gopro2gpx.git"
+  REPOLOCS[26]="https://github.com/opencv/opencv.git"
+  REPOLOCS[27]="https://github.com/opencv/opencv_contrib.git"
+  REPOLOCS[28]="https://github.com/webmproject/libwebp.git"
+  REPOLOCS[29]="https://gitlab.com/AOMediaCodec/SVT-AV1.git"
+  REPOLOCS[30]="https://github.com/ggerganov/whisper.cpp.git"
 
   # REPOTYPE Array holds the repo types. (Yes, this might be redundant, but easy for me)
   REPOTYPES[0]="git"
@@ -508,6 +592,7 @@ function set_globals {
   REPOTYPES[3]="git"
   REPOTYPES[4]="git"
   REPOTYPES[5]="git"
+  REPOTYPES[6]="git"
   REPOTYPES[7]="git"
   REPOTYPES[8]="git"
   REPOTYPES[9]="git"
@@ -523,6 +608,13 @@ function set_globals {
   REPOTYPES[21]="git"
   REPOTYPES[22]="git"
   REPOTYPES[23]="git"
+  REPOTYPES[24]="git"
+  REPOTYPES[25]="git"
+  REPOTYPES[26]="git"
+  REPOTYPES[27]="git"
+  REPOTYPES[28]="git"
+  REPOTYPES[29]="git"
+  REPOTYPES[30]="git"
 
   # And, set up the revisions
   REVISIONS[0]=""
@@ -550,11 +642,16 @@ function set_globals {
   if test 0 = "$MOVIT_HEAD" -a "$MOVIT_REVISION" ; then
     REVISIONS[5]="$MOVIT_REVISION"
   fi
+  REVISIONS[6]=""
+  if test 0 = "$LIBSPATIALAUDIO_HEAD" -a "$LIBSPATIALAUDIO_REVISION" ; then
+    REVISIONS[6]="$LIBSPATIALAUDIO_REVISION_REVISION"
+  fi
   REVISIONS[7]=""
   if test 0 = "$SHOTCUT_HEAD" -a "$SHOTCUT_REVISION" ; then
     REVISIONS[7]="$SHOTCUT_REVISION"
   fi
   REVISIONS[8]=""
+  REVISIONS[9]=""
   REVISIONS[10]=""
   if test 0 = "$VIDSTAB_HEAD" -a "$VIDSTAB_REVISION" ; then
     REVISIONS[10]="$VIDSTAB_REVISION"
@@ -567,9 +664,9 @@ function set_globals {
   if test 0 = "$X265_HEAD" -a "$X265_REVISION" ; then
     REVISIONS[13]="$X265_REVISION"
   fi
-  REVISIONS[15]="sdk/8.1"
+  REVISIONS[15]="$NV_CODEC_REVISION"
   REVISIONS[16]=""
-  REVISIONS[17]="1.25"
+  REVISIONS[17]="$MFX_DISPATCH_REVISION"
   REVISIONS[18]=""
   if test 0 = "$RUBBERBAND_HEAD" -a "$RUBBERBAND_REVISION" ; then
     REVISIONS[18]="$RUBBERBAND_REVISION"
@@ -589,6 +686,31 @@ function set_globals {
   REVISIONS[22]=""
   if test 0 = "$AOM_HEAD" -a "$AOM_REVISION" ; then
     REVISIONS[22]="$AOM_REVISION"
+  fi
+  REVISIONS[23]=""
+  if test 0 = "$VMAF_HEAD" -a "$VMAF_REVISION" ; then
+    REVISIONS[23]="$VMAF_REVISION"
+  fi
+  REVISIONS[24]=""
+  if test 0 = "$GLAXNIMATE_HEAD" -a "$GLAXNIMATE_REVISION" ; then
+    REVISIONS[24]="$GLAXNIMATE_REVISION"
+  fi
+  REVISIONS[25]=""
+  REVISIONS[26]=""
+  if test 0 = "$OPENCV_HEAD" -a "$OPENCV_REVISION" ; then
+    REVISIONS[26]="$OPENCV_REVISION"
+  fi
+  REVISIONS[27]=""
+  if test 0 = "$OPENCV_HEAD" -a "$OPENCV_REVISION" ; then
+    REVISIONS[27]="$OPENCV_REVISION"
+  fi
+  REVISIONS[28]=""
+  if test 0 = "$LIBWEBP_HEAD" -a "$LIBWEBP_REVISION" ; then
+    REVISIONS[28]="$LIBWEBP_REVISION"
+  fi
+  REVISIONS[29]=""
+  if test 0 = "$SVTAV1_HEAD" -a "$SVTAV1_REVISION" ; then
+    REVISIONS[29]="$SVTAV1_REVISION"
   fi
 
   # Figure out the number of cores in the system. Used both by make and startup script
@@ -610,44 +732,14 @@ function set_globals {
     FINAL_INSTALL_DIR="$INSTALL_DIR/`date +'%Y%m%d'`"
   elif test "$TARGET_OS" = "Darwin"; then
     FINAL_INSTALL_DIR="$INSTALL_DIR/build"
-  elif test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    FINAL_INSTALL_DIR="$INSTALL_DIR/Shotcut"
   else
     FINAL_INSTALL_DIR="$INSTALL_DIR/Shotcut/Shotcut.app"
   fi
   debug "Using install dir FINAL_INSTALL_DIR=$FINAL_INSTALL_DIR"
 
   # set global environment for all jobs
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    FFMPEG_SUPPORT_THEORA=0
-    if test "$TARGET_OS" = "Win32" ; then
-      export HOST=i686-w64-mingw32
-      export CROSS=${HOST}.shared-
-      export QTDIR="$HOME/qt-$QT_VERSION_DEFAULT-x86-mingw540-sjlj"
-      export QMAKE="$HOME/Qt/$QT_VERSION_DEFAULT/gcc_64/bin/qmake"
-      export LRELEASE="$HOME/Qt/$QT_VERSION_DEFAULT/gcc_64/bin/lrelease"
-      export LDFLAGS="-L/opt/mxe/usr/${HOST}.shared/lib -Wl,--large-address-aware $LDFLAGS"
-    else
-      export HOST=x86_64-w64-mingw32
-      export CROSS=${HOST}.shared-
-      export QTDIR="$HOME/qt-$QT_VERSION_DEFAULT-x64-mingw540-seh"
-      export QMAKE="$HOME/Qt/$QT_VERSION_DEFAULT/gcc_64/bin/qmake"
-      export LRELEASE="$HOME/Qt/$QT_VERSION_DEFAULT/gcc_64/bin/lrelease"
-      export LDFLAGS="-L/opt/mxe/usr/${HOST}.shared/lib $LDFLAGS"
-    fi
-    export CFLAGS="-I/opt/mxe/usr/${HOST}.shared/include $CFLAGS"
-    export CXXFLAGS="-I/opt/mxe/usr/${HOST}.shared/include $CXXFLAGS"
-    export CC=${CROSS}gcc
-    export CXX=${CROSS}g++
-    export AR=${CROSS}ar
-    export RANLIB=${CROSS}ranlib
-    export CFLAGS="-DHAVE_STRUCT_TIMESPEC -I$FINAL_INSTALL_DIR/include $CFLAGS"
-    export CXXFLAGS="-DHAVE_STRUCT_TIMESPEC -I$FINAL_INSTALL_DIR/include $CXXFLAGS"
-    export LDFLAGS="-L$FINAL_INSTALL_DIR/bin -L$FINAL_INSTALL_DIR/lib $LDFLAGS"
-    export CMAKE_ROOT="${SOURCE_DIR}/vid.stab/cmake"
-    export PKG_CONFIG=pkg-config
-  elif test "$TARGET_OS" = "Darwin"; then
-    [ "$QTDIR" = "" ] && export QTDIR="$HOME/Qt/$QT_VERSION_DARWIN/clang_64"
+  if test "$TARGET_OS" = "Darwin"; then
+    [ "$QTDIR" = "" ] && export QTDIR="$HOME/Qt/$QT_VERSION_DARWIN/macos"
     export RANLIB=ranlib
   else
     if test -z "$QTDIR" ; then
@@ -663,13 +755,16 @@ function set_globals {
   export LD_RUN_PATH="$FINAL_INSTALL_DIR/lib"
   export PKG_CONFIG_PATH="$FINAL_INSTALL_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
 
-  # CONFIG Array holds the ./configure (or equiv) command for each project
+  # PRECONFIG Array holds a command to run before configure for each project
+  # CONFIG Array holds the ./configure (or equivalent) command for each project
   # CFLAGS_ Array holds additional CFLAGS for the configure/make step of a given project
   # LDFLAGS_ Array holds additional LDFLAGS for the configure/make step of a given project
+  # BUILD Array holds the compile and link command for each project, e.g. make or ninja
+  # INSTALL Array holds the install command for each project, e.g. make install
 
   #####
   # ffmpeg
-  CONFIG[0]="./configure --prefix=$FINAL_INSTALL_DIR --disable-static --disable-doc --enable-gpl --enable-version3 --enable-shared --enable-runtime-cpudetect $CONFIGURE_DEBUG_FLAG"
+  CONFIG[0]="./configure --disable-static --disable-doc --enable-gpl --enable-version3 --enable-shared --enable-runtime-cpudetect $CONFIGURE_DEBUG_FLAG"
   if test 1 = "$FFMPEG_SUPPORT_THEORA" ; then
     CONFIG[0]="${CONFIG[0]} --enable-libtheora --enable-libvorbis"
   fi
@@ -706,63 +801,75 @@ function set_globals {
   if test 1 = "$FFMPEG_SUPPORT_WEBP" ; then
     CONFIG[0]="${CONFIG[0]} --enable-libwebp"
   fi
+  if test 1 = "$FFMPEG_SUPPORT_SVTAV1" ; then
+    CONFIG[0]="${CONFIG[0]} --enable-libsvtav1"
+  fi
   if test 1 = "$FFMPEG_SUPPORT_VMAF" ; then
     CONFIG[0]="${CONFIG[0]} --enable-libvmaf"
   fi
+  if test 1 = "$FFMPEG_SUPPORT_JACK" ; then
+    CONFIG[0]="${CONFIG[0]} --enable-libjack"
+  fi
   # Add optional parameters
   CONFIG[0]="${CONFIG[0]} $FFMPEG_ADDITIONAL_OPTIONS"
-  CFLAGS_[0]="-I$FINAL_INSTALL_DIR/include $CFLAGS"
-  if test "$TARGET_OS" = "Win32" ; then
-    CONFIG[0]="${CONFIG[0]} --cross-prefix=$CROSS --arch=x86 --target-os=mingw32 --pkg-config=pkg-config"
-    CFLAGS_[0]="${CFLAGS_[0]} -I$FINAL_INSTALL_DIR/include/SDL2"
-    LDFLAGS_[0]="$LDFLAGS"
-  elif test "$TARGET_OS" = "Win64" ; then
-    CONFIG[0]="${CONFIG[0]} --cross-prefix=$CROSS --arch=x86_64 --target-os=mingw32 --pkg-config=pkg-config"
-    CFLAGS_[0]="${CFLAGS_[0]} -I$FINAL_INSTALL_DIR/include/SDL2"
-    LDFLAGS_[0]="$LDFLAGS"
-  elif test "$TARGET_OS" != "Darwin" -o "$TARGET_ARCH" != "arm64"; then
-    CONFIG[0]="${CONFIG[0]} --enable-libjack"
-    LDFLAGS_[0]="-L$FINAL_INSTALL_DIR/lib $LDFLAGS"
-  fi
+  CFLAGS_[0]="-I$FINAL_INSTALL_DIR/include -Wno-incompatible-pointer-types $CFLAGS"
+  LDFLAGS_[0]="-L$FINAL_INSTALL_DIR/lib $LDFLAGS"
   if test "$TARGET_OS" = "Darwin"; then
     CFLAGS_[0]="${CFLAGS_[0]} -I/opt/local/include"
     LDFLAGS_[0]="${LDFLAGS_[0]} -L/opt/local/lib"
+    BUILD[0]="build_ffmpeg_darwin"
+    INSTALL[0]="install_ffmpeg_darwin"
   elif test "$TARGET_OS" = "Linux" ; then
-    CONFIG[0]="${CONFIG[0]} --enable-libxcb --enable-libpulse"
+    CONFIG[0]="${CONFIG[0]} --enable-libpulse --prefix=$FINAL_INSTALL_DIR"
+    BUILD[0]="make -j$MAKEJ"
+    INSTALL[0]="make install"
   fi
 
   #####
   # mlt
-  CONFIG[1]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_PREFIX_PATH=$QTDIR -DGPL=ON -DGPL3=ON -DMOD_GDK=OFF -DMOD_SDL1=OFF $CMAKE_DEBUG_FLAG"
+  CONFIG[1]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_PREFIX_PATH=$QTDIR -DMOD_QT=OFF -DMOD_QT6=ON -DMOD_GLAXNIMATE_QT6=ON -DMOD_GDK=OFF -DMOD_SDL1=OFF -DUSE_VST2=OFF"
   # Remember, if adding more of these, to update the post-configure check.
-  if test "1" = "$MLT_DISABLE_SOX" ; then
-    CONFIG[1]="${CONFIG[1]} -DMOD_SOX=OFF"
-  fi
+  [ "$ENABLE_OPENCV" = "1" ] && CONFIG[1]="${CONFIG[1]} -DMOD_OPENCV=ON"
+  [ "$MLT_DISABLE_SOX" = "1" ] && CONFIG[1]="${CONFIG[1]} -DMOD_SOX=OFF"
   CFLAGS_[1]="-I$FINAL_INSTALL_DIR/include $ASAN_CFLAGS $CFLAGS"
   if [ "$TARGET_OS" = "Darwin" ]; then
+    CONFIG[1]="${CONFIG[1]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+    if [ "$DEBUG_BUILD" = "1" ]; then
+      CONFIG[1]="${CONFIG[1]} -DCMAKE_BUILD_TYPE=Debug"
+    else
+      CONFIG[1]="${CONFIG[1]} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    fi
     CFLAGS_[1]="${CFLAGS_[1]} -I/opt/local/include"
     LDFLAGS_[1]="${LDFLAGS_[1]} -L/opt/local/lib/libomp"
+  else
+    CONFIG[1]="${CONFIG[1]} $CMAKE_DEBUG_FLAG"
   fi
+  CXXFLAGS_[1]="${CFLAGS_[1]} -std=c++11"
   LDFLAGS_[1]="${LDFLAGS_[1]} -L$FINAL_INSTALL_DIR/lib $ASAN_LDFLAGS $LDFLAGS"
+  BUILD[1]="ninja -j $MAKEJ"
+  INSTALL[1]="ninja install"
 
-  ####
+  #####
   # frei0r
-  CONFIG[2]="cmake -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DWITHOUT_GAVL=1 -DWITHOUT_OPENCV=1 $CMAKE_DEBUG_FLAG"
+  CONFIG[2]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DWITHOUT_GAVL=1 -DWITHOUT_OPENCV=1 $CMAKE_DEBUG_FLAG"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[2]="${CONFIG[2]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
   CFLAGS_[2]=$CFLAGS
   LDFLAGS_[2]=$LDFLAGS
+  BUILD[2]="ninja -j $MAKEJ"
+  INSTALL[2]="ninja install"
 
-  ####
+  #####
   # x264
   CONFIG[3]="./configure --prefix=$FINAL_INSTALL_DIR --disable-lavf --disable-ffms --disable-gpac --disable-swscale --enable-shared --disable-cli $CONFIGURE_DEBUG_FLAG"
   CFLAGS_[3]=$CFLAGS
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    CONFIG[3]="${CONFIG[3]} --enable-win32thread --host=$HOST --cross-prefix=$CROSS --extra-cflags=-fno-aggressive-loop-optimizations"
-  elif test "$TARGET_OS" = "Darwin" ; then
+  if test "$TARGET_OS" = "Darwin" ; then
     CFLAGS_[3]="-I. -fno-common -read_only_relocs suppress ${CFLAGS_[3]}"
   fi
   LDFLAGS_[3]=$LDFLAGS
+  BUILD[3]="make -j$MAKEJ"
+  INSTALL[3]="make install"
 
-  ####
+  #####
   # libvpx
   CONFIG[4]="./configure --prefix=$FINAL_INSTALL_DIR --enable-vp8 --enable-postproc --enable-multithread --disable-install-docs --disable-debug-libs --disable-examples --disable-unit-tests --extra-cflags=-std=c99 $CONFIGURE_DEBUG_FLAG"
   [ "$TARGET_ARCH" != "arm64" ] && CONFIG[4]="${CONFIG[4]} --enable-runtime-cpu-detect"
@@ -770,148 +877,158 @@ function set_globals {
     CONFIG[4]="${CONFIG[4]} --enable-shared"
   elif test "$TARGET_OS" = "Darwin" ; then
     [ "$TARGET_ARCH" != "arm64" ] && CONFIG[4]="${CONFIG[4]} --disable-avx512"
-  elif test "$TARGET_OS" = "Win32" ; then
-    CONFIG[4]="${CONFIG[4]} --target=x86-win32-gcc"
-  elif test "$TARGET_OS" = "Win64" ; then
-    CONFIG[4]="${CONFIG[4]} --target=x86_64-win64-gcc"
   fi
   CFLAGS_[4]=$CFLAGS
   LDFLAGS_[4]=$LDFLAGS
+  BUILD[4]="make -j$MAKEJ"
+  INSTALL[4]="make install"
 
   #####
   # movit
   CONFIG[5]="./autogen.sh --prefix=$FINAL_INSTALL_DIR"
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    CONFIG[5]="${CONFIG[5]} --host=$HOST"
-    # MinGW does not provide ffs(), but there is a gcc intrinsic for it.
-    CFLAGS_[5]="$CFLAGS -Dffs=__builtin_ffs"
-    if test "$TARGET_OS" = "Win64" ; then
-      CFLAGS_[5]="${CFLAGS_[5]} -fpermissive"
-    fi
-  elif test "$TARGET_OS" = "Darwin"; then
+  if test "$TARGET_OS" = "Darwin"; then
     CFLAGS_[5]="$CFLAGS -I/opt/local/include"
   else
     CFLAGS_[5]="$CFLAGS"
   fi
+  CXXFLAGS_[5]="${CFLAGS_[5]}"
   LDFLAGS_[5]=$LDFLAGS
+  if [ "$TARGET_OS" = "Darwin" ]; then
+    BUILD[5]="build_movit_darwin"
+  else
+    BUILD[5]="make -j$MAKEJ RANLIB="$RANLIB" libmovit.la"
+  fi
+  INSTALL[5]="make install"
+
+  #####
+  # libspatialaudio
+  CONFIG[6]="cmake -G Ninja -B build -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[6]="${CONFIG[6]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+  CFLAGS_[6]="$CFLAGS"
+  LDFLAGS_[6]="$LDFLAGS"
+  BUILD[6]="ninja -C build -j $MAKEJ"
+  INSTALL[6]="ninja -C build install"
 
   #####
   # shotcut
-  if [ "$TARGET_OS" = "Darwin" ]; then
-    CONFIG[7]="$QTDIR/bin/qmake -r MLT_PREFIX=$FINAL_INSTALL_DIR SHOTCUT_VERSION=$SHOTCUT_VERSION $QMAKE_DEBUG_FLAG $QMAKE_ASAN_FLAGS"
-  elif [ "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ]; then
-    # DEFINES+=QT_STATIC is for QWebSockets
-    CONFIG[7]="$QMAKE -r -spec mkspecs/mingw CONFIG+=link_pkgconfig PKGCONFIG+=mlt++ LIBS+=-L${QTDIR}/lib SHOTCUT_VERSION=$SHOTCUT_VERSION DEFINES+=QT_STATIC QMAKE_CXXFLAGS+=-std=c++11 $QMAKE_DEBUG_FLAG $QMAKE_ASAN_FLAGS"
+  CONFIG[7]="cmake -G Ninja -D CMAKE_PREFIX_PATH=$QTDIR -D SHOTCUT_VERSION=$SHOTCUT_VERSION $CMAKE_DEBUG_FLAG"
+  if test "$TARGET_OS" = "Darwin" ; then
+    CONFIG[7]="${CONFIG[7]} -D CMAKE_INSTALL_PREFIX=."
+    CONFIG[7]="${CONFIG[7]} -D CMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
   else
-    CONFIG[7]="$QTDIR/bin/qmake -r PREFIX=$FINAL_INSTALL_DIR SHOTCUT_VERSION=$SHOTCUT_VERSION $QMAKE_DEBUG_FLAG $QMAKE_ASAN_FLAGS"
-    LD_LIBRARY_PATH_[7]="/usr/local/lib"
+    CONFIG[7]="${CONFIG[7]} -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR"
   fi
-  CFLAGS_[7]=$CFLAGS
-  LDFLAGS_[7]=$LDFLAGS
+  CFLAGS_[7]="$ASAN_CFLAGS $CFLAGS"
+  LDFLAGS_[7]="$ASAN_LDFLAGS $LDFLAGS"
+  BUILD[7]="ninja -j $MAKEJ"
+  if [ "$TARGET_OS" = "Darwin" ]; then
+    INSTALL[7]="ninja install"
+  else
+    INSTALL[7]="install_shotcut_linux"
+  fi
 
   #####
-  # swh-plugins
+  # ladspa
+  PRECONFIG[8]="autoreconf -i"
   CONFIG[8]="./configure --prefix=$FINAL_INSTALL_DIR"
-  [ "$TARGET_ARCH" != "arm64" ] && CONFIG[8]="${CONFIG[8]} --enable-sse"
-  if [ "$TARGET_OS" = "Darwin" ]; then
-    CONFIG[8]="${CONFIG[8]} --enable-darwin"
-	[ "$TARGET_ARCH" != "arm64" ] && CFLAGS_[8]="-march=nocona $CFLAGS"
+  if [ "$TARGET_OS" = "Darwin" -a "$TARGET_ARCH" = "arm64" ]; then
+    BUILD[8]="build_ladspa_darwin"
+  else
+    CONFIG[8]="${CONFIG[8]} --enable-sse"
+    BUILD[8]="make -j$MAKEJ"
   fi
   LDFLAGS_[8]=$LDFLAGS
-
-  ####
-  # vid.stab
-  CONFIG[10]="cmake -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_INSTALL_LIBDIR=lib $CMAKE_DEBUG_FLAG"
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    CONFIG[10]="${CONFIG[10]} -DCMAKE_TOOLCHAIN_FILE=my.cmake"
-    LDFLAGS_[10]=$LDFLAGS
-  elif test "$TARGET_OS" = "Darwin" ; then
-    if [ "$TARGET_ARCH" = "arm64" ] ; then
-      CONFIG[10]="${CONFIG[10]} -DOpenMP_C_FLAGS=-I/opt/local/include/libomp -DOpenMP_C_LIB_NAMES=libomp -DOpenMP_libomp_LIBRARY=omp"
-      LDFLAGS_[10]="$LDFLAGS -L/opt/local/lib/libomp"
-    else
-      CONFIG[10]="${CONFIG[10]} -DCMAKE_C_COMPILER=gcc-mp-5 -DCMAKE_CXX_COMPILER=g++-mp-5"
-      LDFLAGS_[10]=$LDFLAGS
-    fi
-  fi
-  CFLAGS_[10]=$CFLAGS
+  INSTALL[8]="install_ladspa"
 
   #####
-  # libopus
+  # OpenBLAS
+  CONFIG[9]="cmake -G Ninja -B builddir -D BUILD_SHARED_LIBS=ON -D USE_THREAD=ON -D NUM_THREADS=64 -D USE_OPENMP=ON -D TARGET=CORE2 -D DYNAMIC_ARCH=ON -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  CFLAGS_[9]="$ASAN_CFLAGS $CFLAGS"
+  LDFLAGS_[9]="$ASAN_LDFLAGS $LDFLAGS"
+  BUILD[9]="ninja -C builddir -j $MAKEJ"
+  INSTALL[9]="ninja -C builddir install"
+
+  #####
+  # vid.stab
+  CONFIG[10]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DCMAKE_INSTALL_LIBDIR=lib $CMAKE_DEBUG_FLAG"
+  if test "$TARGET_OS" = "Darwin" ; then
+    CONFIG[10]="${CONFIG[10]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+    CONFIG[10]="${CONFIG[10]} -DOpenMP_C_FLAGS=-I/opt/local/include/libomp -DOpenMP_C_LIB_NAMES=libomp -DOpenMP_libomp_LIBRARY=omp"
+    LDFLAGS_[10]="$LDFLAGS -L/opt/local/lib/libomp"
+  fi
+  CFLAGS_[10]=$CFLAGS
+  BUILD[10]="ninja -j $MAKEJ"
+  INSTALL[10]="ninja install"
+
+  #####
+  # opus
+  [ ! -e "$SOURCE_DIR"/opus/configure ] && PRECONFIG[12]="./autogen.sh"
   CONFIG[12]="./configure --prefix=$FINAL_INSTALL_DIR"
-  if test "$TARGET_OS" = "Win32" ; then
-    CONFIG[12]="${CONFIG[12]} --host=x86-w64-mingw32"
-    CFLAGS_[12]="$CFLAGS"
-  elif test "$TARGET_OS" = "Win64" ; then
-    CONFIG[12]="${CONFIG[12]} --host=x86_64-w64-mingw32"
-    CFLAGS_[12]="$CFLAGS"
-  elif test "$TARGET_OS" = "Darwin"; then
+  if test "$TARGET_OS" = "Darwin"; then
     CFLAGS_[12]="$CFLAGS -I/opt/local/include"
   else
     CFLAGS_[12]="$CFLAGS"
   fi
   LDFLAGS_[12]=$LDFLAGS
+  BUILD[12]="make -j$MAKEJ"
+  INSTALL[12]="make install"
 
-  ######
+  #####
   # x265
-  CFLAGS_[13]=$CFLAGS
+  PRECONFIG[13]="preconfig_x265"
   CONFIG[13]="cmake -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -DENABLE_CLI=OFF -D ENABLE_SHARED=ON -D EXTRA_LIB='x265_main10.a' -D LINKED_10BIT=ON -D EXTRA_LINK_FLAGS='-L.' $CMAKE_DEBUG_FLAG"
+  CFLAGS_[13]=$CFLAGS
   LDFLAGS_[13]=$LDFLAGS
+  BUILD[13]="ninja -j $MAKEJ"
+  INSTALL[13]="install_x265"
 
-  #######
+  #####
   # nv-codec-headers
   CONFIG[15]="sed -i s,/usr/local,$FINAL_INSTALL_DIR, Makefile"
+  BUILD[15]="make -j$MAKEJ"
+  INSTALL[15]="make install"
 
-  #######
+  #####
   # AMF - no build required
   CONFIG[16]=""
 
-  #######
+  #####
   # QSV mfx_dispatch
   CONFIG[17]="./configure --prefix=$FINAL_INSTALL_DIR"
-  if test "$TARGET_OS" = "Win32" ; then
-    CONFIG[17]="${CONFIG[17]} --host=x86-w64-mingw32 --without-libva_drm --without-libva_x11"
-  elif test "$TARGET_OS" = "Win64" ; then
-    CONFIG[17]="${CONFIG[17]} --host=x86_64-w64-mingw32 --without-libva_drm --without-libva_x11"
-  fi
   CFLAGS_[17]="$CFLAGS"
   LDFLAGS_[17]=$LDFLAGS
+  BUILD[17]="make -j$MAKEJ"
+  INSTALL[17]="make install"
 
   #####
   # rubberband
   CONFIG[18]="meson setup builddir --prefix=$FINAL_INSTALL_DIR --libdir=$FINAL_INSTALL_DIR/lib"
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    CONFIG[18]="${CONFIG[18]} --host=$HOST"
-  fi
   CFLAGS_[18]=$CFLAGS
   LDFLAGS_[18]=$LDFLAGS
+  BUILD[18]="ninja -C builddir -j $MAKEJ"
+  INSTALL[18]="meson install -C builddir"
 
-  #########
+  #####
   # bigsh0t
-  CONFIG[19]="cmake -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-      CONFIG[19]="${CONFIG[19]} -DCMAKE_TOOLCHAIN_FILE=my.cmake"
-  elif test "$TARGET_OS" = "Darwin" ; then
-    [ "$TARGET_ARCH" != "arm64" ] && CONFIG[19]="${CONFIG[19]} -DCMAKE_C_COMPILER=gcc-mp-5 -DCMAKE_CXX_COMPILER=g++-mp-5"
-  fi
+  CONFIG[19]="cmake -GNinja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[19]="${CONFIG[19]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
   CFLAGS_[19]=$CFLAGS
   LDFLAGS_[19]=$LDFLAGS
+  BUILD[19]="ninja -j $MAKEJ"
+  INSTALL[19]="install -p -c *.so $FINAL_INSTALL_DIR/lib/frei0r-1"
 
   #####
   # zimg
+  [ ! -e "$SOURCE_DIR"/zimg/configure ] && PRECONFIG[20]="./autogen.sh"
   CONFIG[20]="./configure --prefix=$FINAL_INSTALL_DIR"
-  if test "$TARGET_OS" = "Win32" ; then
-    CONFIG[20]="${CONFIG[20]} --host=x86-w64-mingw32"
-    CFLAGS_[20]="$CFLAGS"
-  elif test "$TARGET_OS" = "Win64" ; then
-    CONFIG[20]="${CONFIG[20]} --host=x86_64-w64-mingw32"
-    CFLAGS_[20]="$CFLAGS"
-  elif test "$TARGET_OS" = "Darwin"; then
+  if test "$TARGET_OS" = "Darwin"; then
     CFLAGS_[20]="$CFLAGS -I/opt/local/include"
   else
     CFLAGS_[20]="$CFLAGS"
   fi
   LDFLAGS_[20]=$LDFLAGS
+  BUILD[20]="make -j$MAKEJ"
+  INSTALL[20]="make install"
 
   #####
   # dav1d
@@ -923,6 +1040,8 @@ function set_globals {
   fi
   CFLAGS_[21]=$CFLAGS
   LDFLAGS_[21]=$LDFLAGS
+  BUILD[21]="ninja -C builddir -j $MAKEJ"
+  INSTALL[21]="meson install -C builddir"
 
   #####
   # aom
@@ -930,10 +1049,18 @@ function set_globals {
   [ "$TARGET_OS" = "Darwin" -a "$TARGET_ARCH" = "arm64" ] && CONFIG[22]="${CONFIG[22]} -DCONFIG_RUNTIME_CPU_DETECT=0"
   CFLAGS_[22]=$CFLAGS
   LDFLAGS_[22]=$LDFLAGS
+  BUILD[22]="ninja -j $MAKEJ"
+  INSTALL[22]="ninja install"
 
   #####
   # vmaf
-  CONFIG[23]="meson setup libvmaf/build libvmaf --prefix=$FINAL_INSTALL_DIR --libdir=$FINAL_INSTALL_DIR/lib"
+  if [ "$TARGET_OS" = "Darwin" ]; then
+    CONFIG[23]="meson setup libvmaf/build-arm64 libvmaf --prefix=$FINAL_INSTALL_DIR --libdir=$FINAL_INSTALL_DIR/lib --cross-file=arm64-darwin -Denable_tests=false -Denable_docs=false -Dbuilt_in_models=false"
+    BUILD[23]="build_vmaf_darwin"
+  else
+    CONFIG[23]="meson setup libvmaf/build libvmaf --prefix=$FINAL_INSTALL_DIR --libdir=$FINAL_INSTALL_DIR/lib"
+    BUILD[23]="ninja -C libvmaf/build -j $MAKEJ"
+  fi
   if [ "$DEBUG_BUILD" = "1" ]; then
     CONFIG[23]="${CONFIG[23]} --buildtype=debug"
   else
@@ -941,6 +1068,188 @@ function set_globals {
   fi
   CFLAGS_[23]=$CFLAGS
   LDFLAGS_[23]=$LDFLAGS
+  INSTALL[23]="install_vmaf"
+
+  #####
+  # glaxnimate
+  CONFIG[24]="cmake -G Ninja -DCMAKE_PREFIX_PATH='$FINAL_INSTALL_DIR;$QTDIR' -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  if [ "$TARGET_OS" = "Darwin" ]; then
+    CONFIG[24]="${CONFIG[24]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+    CONFIG[24]="${CONFIG[24]} -DPython3_EXECUTABLE=/opt/local/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}/bin/python${PYTHON_VERSION_DARWIN}"
+  fi
+  CFLAGS_[24]="$ASAN_CFLAGS $CFLAGS"
+  LDFLAGS_[24]="$ASAN_LDFLAGS $LDFLAGS"
+  BUILD[24]="ninja -j $MAKEJ"
+  INSTALL[24]="ninja translations install"
+
+  #####
+  # gopro2gpx
+  CONFIG[25]="cmake -G Ninja -DCMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[25]="${CONFIG[25]} -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+  CFLAGS_[25]="$CFLAGS"
+  LDFLAGS_[25]="$LDFLAGS"
+  BUILD[25]="ninja -j $MAKEJ"
+  INSTALL[25]="install -p -c gopro2gpx $FINAL_INSTALL_DIR/bin"
+
+  #####
+  # opencv
+  CONFIG[26]="cmake -B build -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -D BUILD_LIST=tracking -D OPENCV_GENERATE_PKGCONFIG=YES -D OPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules -D WITH_OPENMP=ON $CMAKE_DEBUG_FLAG"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[26]="${CONFIG[26]} -D CMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+  CFLAGS_[26]="$CFLAGS"
+  LDFLAGS_[26]="$LDFLAGS"
+  BUILD[26]="ninja -C build -j $MAKEJ"
+  INSTALL[26]="ninja -C build install"
+
+  #####
+  # libwebp
+  CONFIG[28]="cmake -B build -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR -D BUILD_SHARED_LIBS=ON $CMAKE_DEBUG_FLAG"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[28]="${CONFIG[28]} -D CMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+  CFLAGS_[28]="$CFLAGS"
+  LDFLAGS_[28]="$LDFLAGS"
+  BUILD[28]="ninja -C build -j $MAKEJ"
+  INSTALL[28]="ninja -C build install"
+
+  #####
+  # SVT-AV1
+  CONFIG[29]="cmake -B build -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG -D BUILD_SHARED_LIBS=ON -D BUILD_TESTING=OFF -D BUILD_APPS=OFF -D ENABLE_AVX512=ON"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[29]="${CONFIG[29]} -D CMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+  CFLAGS_[29]=$CFLAGS
+  LDFLAGS_[29]=$LDFLAGS
+  BUILD[29]="ninja -C build -j $MAKEJ"
+  INSTALL[29]="ninja -C build install"
+  
+  #####
+  # whisper.cpp
+  CONFIG[30]="cmake -B build -G Ninja -D CMAKE_INSTALL_PREFIX=$FINAL_INSTALL_DIR $CMAKE_DEBUG_FLAG -D BUILD_SHARED_LIBS=ON -D GGML_NATIVE=OFF -D GGML_AVX2=OFF -D WHISPER_BUILD_SERVER=OFF -D WHISPER_BUILD_TESTS=OFF"
+  [ "$TARGET_OS" = "Darwin" ] && CONFIG[30]="${CONFIG[30]} -D CMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+  if test "$TARGET_OS" = "Darwin" ; then
+    CONFIG[30]="${CONFIG[30]} -D CMAKE_OSX_ARCHITECTURES='arm64;x86_64'"
+    CONFIG[30]="${CONFIG[30]} -D OpenMP_C_FLAGS=-I/opt/local/include/libomp -D OpenMP_CXX_FLAGS=-I/opt/local/include/libomp -D OpenMP_C_LIB_NAMES=libomp -D OpenMP_CXX_LIB_NAMES=libomp -D OpenMP_libomp_LIBRARY=omp"
+    LDFLAGS_[30]="$LDFLAGS -L /opt/local/lib/libomp"
+  else
+    CONFIG[30]="${CONFIG[30]} -D GGML_BLAS=ON -D GGML_BLAS_VENDOR=OpenBLAS"
+    CFLAGS_[30]=$CFLAGS
+    LDFLAGS_[30]=$LDFLAGS
+  fi
+  BUILD[30]="ninja -C build -j $MAKEJ"
+  INSTALL[30]="install_whispercpp"
+}
+
+function build_ffmpeg_darwin {
+  make distclean || true
+  MYCONFIG=`lookup CONFIG ffmpeg`
+  cmd $MYCONFIG --prefix=build-arm64
+  cmd make -j $MAKEJ
+  cmd make install
+  cmd make distclean
+  ASFLAGS="-arch x86_64"
+  cmd $MYCONFIG --prefix=build-x86_64 --enable-cross-compile --arch=x86_64 --enable-x86asm --cc='clang -arch x86_64'
+  cmd make -j $MAKEJ
+  cmd make install
+}
+
+function install_ffmpeg_darwin {
+  for file in ffmpeg ffplay ffprobe; do
+    cmd lipo -create build-arm64/bin/$file build-x86_64/bin/$file -output "$FINAL_INSTALL_DIR"/bin/$file
+    libs=$(otool -L "$FINAL_INSTALL_DIR"/bin/$file | awk '/^\tbuild-arm64\// || /^\tbuild-x86_64\// {print $1}')
+    for lib in $libs; do
+      basename_lib=$(basename "$lib")
+      cmd install_name_tool -change "$lib" "$FINAL_INSTALL_DIR"/lib/$basename_lib "$FINAL_INSTALL_DIR"/bin/$file
+    done
+  done
+  for lib in libavcodec libavdevice libavfilter libavformat libavutil libpostproc libswresample libswscale; do
+    file=$(find build-arm64 -type l -name $lib'.*.dylib' -exec basename {} \;)
+    cmd ln -sf $file "$FINAL_INSTALL_DIR"/lib/$lib.dylib
+    cmd lipo -create build-arm64/lib/$file build-x86_64/lib/$file -output "$FINAL_INSTALL_DIR"/lib/$file
+    cmd install_name_tool -id "$FINAL_INSTALL_DIR"/lib/$file "$FINAL_INSTALL_DIR"/lib/$file
+    libs=$(otool -L "$FINAL_INSTALL_DIR"/lib/$file | awk '/^\tbuild-arm64\// || /^\tbuild-x86_64\// {print $1}')
+    for lib in $libs; do
+      basename_lib=$(basename "$lib")
+      cmd install_name_tool -change "$lib" "$FINAL_INSTALL_DIR"/lib/$basename_lib "$FINAL_INSTALL_DIR"/lib/$file
+    done
+  done
+  cmd sed -e "s,=build-arm64,=${FINAL_INSTALL_DIR},g" -i .bak build-arm64/lib/pkgconfig/*.pc
+  cmd cp -a build-arm64/lib/pkgconfig/*.pc "$FINAL_INSTALL_DIR"/lib/pkgconfig/
+  cmd cp -a build-arm64/include/ "$FINAL_INSTALL_DIR"/include/
+}
+
+function build_ladspa_darwin {
+  cmd make -j $MAKEJ CC="clang -arch arm64 -arch x86_64"
+}
+
+function install_ladspa {
+  cmd make install
+  cmd install -d "$FINAL_INSTALL_DIR"/include
+  cmd install -p -c ladspa.h "$FINAL_INSTALL_DIR"/include
+}
+
+function build_movit_darwin {
+  cmd make -j $MAKEJ RANLIB="$RANLIB" CC="clang -arch arm64 -arch x86_64" CXX="clang++ -arch arm64 -arch x86_64" libmovit.la
+}
+
+function install_shotcut_linux {
+  cmd ninja install
+  cmd install -p -c COPYING "$FINAL_INSTALL_DIR"
+  cmd install -p -c "$QTDIR"/translations/qt_*.qm "$FINAL_INSTALL_DIR"/share/shotcut/translations
+  cmd install -p -c "$QTDIR"/translations/qtbase_*.qm "$FINAL_INSTALL_DIR"/share/shotcut/translations
+  cmd install -p -c "$QTDIR"/lib/libQt6{Charts,Core,Core5Compat,DBus,Gui,Multimedia,Network,OpenGL,OpenGLWidgets,Qml,QmlModels,QmlWorkerScript,Quick,QuickControls2*,QuickDialogs2,QuickDialogs2QuickImpl,QuickDialogs2Utils,QuickLayouts,QuickTemplates2,QuickWidgets,Sql,Svg,SvgWidgets,UiTools,WaylandClient,WaylandEglClientHwIntegration,Widgets,Xml,X11Extras,XcbQpa}.so.6 "$FINAL_INSTALL_DIR"/lib
+  cmd install -p -c "$QTDIR"/lib/lib{icudata,icui18n,icuuc}.so* "$FINAL_INSTALL_DIR"/lib
+  cmd install -d "$FINAL_INSTALL_DIR"/lib/qt6/sqldrivers
+  cmd cp -a "$QTDIR"/plugins/{egldeviceintegrations,generic,iconengines,imageformats,multimedia,platforminputcontexts,platforms,platformthemes,tls,wayland-decoration-client,wayland-graphics-integration-client,wayland-shell-integration,xcbglintegrations} "$FINAL_INSTALL_DIR"/lib/qt6
+  cmd cp -p "$QTDIR"/plugins/sqldrivers/libqsqlite.so "$FINAL_INSTALL_DIR"/lib/qt6/sqldrivers
+  cmd install -d "$FINAL_INSTALL_DIR"/lib/qml
+  cmd cp -a "$QTDIR"/qml/{Qt,QtCore,QtQml,QtQuick} "$FINAL_INSTALL_DIR"/lib/qml
+  cmd install -d "$FINAL_INSTALL_DIR"/lib/va
+  cmd install -p -c /usr/lib/x86_64-linux-gnu/dri/*_drv_video.so "$FINAL_INSTALL_DIR"/lib/va
+}
+
+function build_vmaf_darwin {
+  cmd ninja -C libvmaf/build-arm64 -j $MAKEJ
+  export CFLAGS="$CFLAGS -arch x86_64" CXXFLAGS="$CXXFLAGS -arch x86_64"
+  cmd meson setup libvmaf/build-x86_64 libvmaf --cross-file=x86_64-darwin -Denable_tests=false -Denable_docs=false -Dbuilt_in_models=false
+  cmd ninja -C libvmaf/build-x86_64 -j $MAKEJ
+}
+
+function install_vmaf {
+  if [ "$TARGET_OS" = "Darwin" ]; then
+    cmd ninja install -C libvmaf/build-arm64
+    cmd rm "$FINAL_INSTALL_DIR"/lib/libvmaf.3.dylib
+    cmd lipo -create libvmaf/build-arm64/src/libvmaf.3.dylib libvmaf/build-x86_64/src/libvmaf.3.dylib -output "$FINAL_INSTALL_DIR"/lib/libvmaf.3.dylib
+    cmd install_name_tool -id "$FINAL_INSTALL_DIR"/lib/libvmaf.3.dylib "$FINAL_INSTALL_DIR"/lib/libvmaf.3.dylib
+  else
+    cmd ninja -C libvmaf/build install
+  fi
+  cmd install -d "$FINAL_INSTALL_DIR"/share/vmaf
+  cmd install -p -c model/*.json "$FINAL_INSTALL_DIR"/share/vmaf
+}
+
+function preconfig_x265 {
+  [ ! -d "10bit" ] && mkdir 10bit
+  cd 10bit
+  cmd cmake -G Ninja -D ENABLE_CLI=OFF -D ENABLE_SHARED=OFF -D EXPORT_C_API=OFF -D HIGH_BIT_DEPTH=ON $CMAKE_DEBUG_FLAG ../source
+  cmd ninja -j$MAKEJ
+  cd ../source
+  cmd ln -s ../10bit/libx265.a libx265_main10.a
+}
+
+function install_x265 {
+  cmd mv libx265.a libx265_main.a
+  ar -M <<EOF
+CREATE libx265.a
+ADDLIB libx265_main.a
+ADDLIB libx265_main10.a
+SAVE
+END
+EOF
+  cmd ninja install
+}
+
+function install_whispercpp {
+  cmd ninja -C build install
+  cmd mkdir -p $FINAL_INSTALL_DIR/bin
+  cmd install -p -c build/bin/whisper-cli $FINAL_INSTALL_DIR/bin
+  cmd mkdir -p $FINAL_INSTALL_DIR/share/shotcut/whisper_models
+  cmd install -p -c models/ggml-base-q5_1.bin $FINAL_INSTALL_DIR/share/shotcut/whisper_models
 }
 
 ######################################################################
@@ -1043,153 +1352,6 @@ function clean_dirs {
   feedback_status Done cleaning out in source dirs
 }
 
-function get_win32_build {
-
-  if test "frei0r" = "$1" -o "vid.stab" = "$1" -o "x265" = "$1" -o "bigsh0t" = "$1" ; then
-      debug "Fix cmake modules for $1"
-      [ "x265" = "$1" ] && cd source
-      cmd mkdir cmake 2>/dev/null
-      if [ -d "/usr/share/cmake-3.0" ] ; then
-        cmd cp -r /usr/share/cmake-3.0/Modules cmake
-      elif [ -d "/usr/share/cmake-2.8" ] ; then
-        cmd cp -r /usr/share/cmake-2.8/Modules cmake
-      fi
-      sed 's/-rdynamic//' -i cmake/Modules/Platform/Linux-GNU.cmake
-
-      debug "Create cmake rules for $1"
-      cat >my.cmake <<END_OF_CMAKE_RULES
-# the name of the target operating system
-SET(CMAKE_SYSTEM_NAME Windows)
-
-# which compilers to use for C and C++
-SET(CMAKE_C_COMPILER ${CROSS}gcc)
-SET(CMAKE_CXX_COMPILER ${CROSS}g++)
-SET(CMAKE_LINKER ${CROSS}ld)
-SET(CMAKE_STRIP ${CROSS}strip)
-# workaround CMake not identifying correct resource compiler and using the wrong switches.
-SET(CMAKE_RC_COMPILER /usr/bin/${HOST}-windres)
-
-# here is the target environment located
-SET(CMAKE_FIND_ROOT_PATH $(dirname $(dirname $(which ${CROSS}gcc)))/${HOST}.shared $FINAL_INSTALL_DIR)
-
-# adjust the default behaviour of the FIND_XXX() commands:
-# search headers and libraries in the target environment, search
-# programs in the host environment
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-END_OF_CMAKE_RULES
-
-  elif test "shotcut" = "$1" ; then
-      mkdir -p mkspecs/mingw 2> /dev/null
-      debug "Create qmake mkspec for $1"
-      cat >mkspecs/mingw/qmake.conf <<END_OF_QMAKE_SPEC
-#
-# qmake configuration for win32-g++
-#
-# Written for MinGW
-#
-
-MAKEFILE_GENERATOR    = MINGW
-TEMPLATE    	= app
-CONFIG			+= qt warn_on release link_prl copy_dir_files precompile_header
-CONFIG			+= win32
-QT			+= core gui
-DEFINES			+= UNICODE
-DEFINES 		+= HAVE_STRUCT_TIMESPEC
-QMAKE_COMPILER_DEFINES  += __GNUC__ WIN32
-
-QMAKE_EXT_OBJ           = .o
-QMAKE_EXT_RES           = _res.o
-
-QMAKE_COMPILER          = gcc
-QMAKE_CC		= ${CROSS}gcc
-QMAKE_LEX		= flex
-QMAKE_LEXFLAGS		=
-QMAKE_YACC		= byacc
-QMAKE_YACCFLAGS		= -d
-QMAKE_CFLAGS		=
-QMAKE_CFLAGS_DEPS	= -M
-QMAKE_CFLAGS_WARN_ON	= -Wall
-QMAKE_CFLAGS_WARN_OFF	= -w
-QMAKE_CFLAGS_RELEASE	= -O2
-QMAKE_CFLAGS_DEBUG	= -g
-QMAKE_CFLAGS_YACC	= -Wno-unused -Wno-parentheses
-
-QMAKE_CXX		= ${CROSS}g++
-QMAKE_CXXFLAGS		= \$\$QMAKE_CFLAGS
-QMAKE_CXXFLAGS_DEPS	= \$\$QMAKE_CFLAGS_DEPS
-QMAKE_CXXFLAGS_WARN_ON	= \$\$QMAKE_CFLAGS_WARN_ON
-QMAKE_CXXFLAGS_WARN_OFF	= \$\$QMAKE_CFLAGS_WARN_OFF
-QMAKE_CXXFLAGS_RELEASE	= \$\$QMAKE_CFLAGS_RELEASE
-QMAKE_CXXFLAGS_DEBUG	= \$\$QMAKE_CFLAGS_DEBUG
-QMAKE_CXXFLAGS_YACC	= \$\$QMAKE_CFLAGS_YACC
-QMAKE_CXXFLAGS_THREAD	= \$\$QMAKE_CFLAGS_THREAD
-QMAKE_CXXFLAGS_RTTI_ON	= -frtti
-QMAKE_CXXFLAGS_RTTI_OFF	= -fno-rtti
-QMAKE_CXXFLAGS_EXCEPTIONS_ON = -fexceptions -mthreads
-QMAKE_CXXFLAGS_EXCEPTIONS_OFF = -fno-exceptions
-
-QMAKE_INCDIR		= /opt/mxe/usr/${HOST}.shared/include
-QMAKE_INCDIR_QT		= \$(QTDIR)/include
-QMAKE_LIBDIR_QT		= \$(QTDIR)/lib
-
-
-QMAKE_RUN_CC		= \$(CC) -c \$(CFLAGS) \$(INCPATH) -o \$obj \$src
-QMAKE_RUN_CC_IMP	= \$(CC) -c \$(CFLAGS) \$(INCPATH) -o \$@ \$<
-QMAKE_RUN_CXX		= \$(CXX) -c \$(CXXFLAGS) \$(INCPATH) -o \$obj \$src
-QMAKE_RUN_CXX_IMP	= \$(CXX) -c \$(CXXFLAGS) \$(INCPATH) -o \$@ \$<
-
-QMAKE_LINK		= ${CROSS}g++
-QMAKE_LINK_C		= ${CROSS}gcc
-QMAKE_LFLAGS		= -Wl,-enable-stdcall-fixup -Wl,-enable-auto-import -Wl,-enable-runtime-pseudo-reloc
-QMAKE_LFLAGS_EXCEPTIONS_ON = -mthreads
-QMAKE_LFLAGS_EXCEPTIONS_OFF =
-QMAKE_LFLAGS_RELEASE	= -Wl,-s
-QMAKE_LFLAGS_DEBUG	=
-QMAKE_LFLAGS_CONSOLE	= -Wl,-subsystem,console
-QMAKE_LFLAGS_WINDOWS	= -Wl,-subsystem,windows
-QMAKE_LFLAGS_DLL        = -shared
-QMAKE_LINK_OBJECT_MAX	= 10
-QMAKE_LINK_OBJECT_SCRIPT= object_script
-QMAKE_PREFIX_STATICLIB  = lib
-QMAKE_EXTENSION_STATICLIB = a
-
-
-QMAKE_LIBS              =
-QMAKE_LIBS_CORE         = -lole32 -luuid -lws2_32 -ladvapi32 -lshell32 -luser32 -lkernel32
-QMAKE_LIBS_GUI          = -lgdi32 -lcomdlg32 -loleaut32 -limm32 -lwinmm -lwinspool -lws2_32 -lole32 -luuid -luser32 -ladvapi32
-QMAKE_LIBS_NETWORK      = -lws2_32
-QMAKE_LIBS_OPENGL       = -lglu32 -lopengl32 -lgdi32 -luser32
-QMAKE_LIBS_COMPAT       = -ladvapi32 -lshell32 -lcomdlg32 -luser32 -lgdi32 -lws2_32
-QMAKE_LIBS_QT_ENTRY     = -lmingw32 -lqtmain
-
-MINGW_IN_SHELL      = 1
-QMAKE_DIR_SEP		= /
-QMAKE_QMAKE		~= s,\\\\,/,
-QMAKE_COPY		= cp
-QMAKE_COPY_DIR		= cp -r
-QMAKE_MOVE		= mv
-QMAKE_DEL_FILE		= rm
-QMAKE_MKDIR		= mkdir -p
-QMAKE_DEL_DIR		= rmdir
-QMAKE_CHK_DIR_EXISTS = test -d
-
-QMAKE_IDL		= midl
-QMAKE_LIB		= ${CROSS}ar -ru
-QMAKE_RC		= ${CROSS}windres
-QMAKE_ZIP		= zip -r -9
-
-QMAKE_STRIP		= ${CROSS}strip
-QMAKE_STRIPFLAGS_LIB 	+= --strip-unneeded
-load(qt_config)
-END_OF_QMAKE_SPEC
-    if [ "$TARGET_OS" = "Win32" ]; then
-      echo >>mkspecs/mingw/qmake.conf "QMAKE_LFLAGS += -Wl,--large-address-aware"
-    fi
-  fi
-}
-
 #################################################################
 # get_subproject
 # $1 The sourcedir to get sources for
@@ -1201,7 +1363,7 @@ function get_subproject {
   feedback_status Getting or updating source for $1 - this could take some time
   cmd pushd .
 
-  # Check for repository setyp
+  # Check for repository setup
   REPOTYPE=`lookup REPOTYPES $1`
   REPOLOC=`lookup REPOLOCS $1`
   REVISION=`lookup REVISIONS $1`
@@ -1244,9 +1406,9 @@ function get_subproject {
           # No git repo
           debug "No git repo, need to check out"
           feedback_status "Cloning git sources for $1"
-          cmd git --no-pager clone $REPOLOC || die "Unable to git clone source for $1 from $REPOLOC"
+          cmd git --no-pager clone --quiet --recurse-submodules $REPOLOC || die "Unable to git clone source for $1 from $REPOLOC"
           cmd cd $1 || die "Unable to change to directory $1"
-          cmd git checkout $REVISION || die "Unable to git checkout $REVISION"
+          cmd git checkout --recurse-submodules $REVISION || die "Unable to git checkout $REVISION"
       fi
   elif test "svn" = "$REPOTYPE" ; then
       # Create subdir if not exist
@@ -1300,27 +1462,11 @@ function get_subproject {
       cmd cd $1 || die "Unable to change to directory $1"
   fi # git/svn
 
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    get_win32_build "$1"
+  if [ "$1" = "whisper.cpp" ]; then
+    cmd sh ./models/download-ggml-model.sh base-q5_1
   fi
 
   feedback_status Done getting or updating source for $1
-  cmd popd
-}
-
-function get_win32_prebuilt {
-  log Extracting prebuilts tarball
-  cmd pushd .
-  cmd rm -rf "$FINAL_INSTALL_DIR" 2> /dev/null
-  cmd mkdir -p "$FINAL_INSTALL_DIR"
-  cd "$FINAL_INSTALL_DIR" || die "Unable to change to directory $FINAL_INSTALL_DIR"
-  if [ "$TARGET_OS" = "Win32" ]; then
-    cmd tar -xJf "$HOME/mlt-prebuilt-mingw32.tar.xz"
-    cmd unzip "$HOME/gtk+-bundle_2.24.10-20120208_win32.zip"
-  else
-    cmd tar -xJf "$HOME/mlt-prebuilt-mingw32-x64.tar.xz"
-    cmd unzip "$HOME/gtk+-bundle_2.22.1-20101229_win64.zip"
-  fi
   cmd popd
 }
 
@@ -1361,8 +1507,8 @@ dependencies from various sources on the Internet:
   https://www.mltframework.org/docs/windowsbuild/
 Except, now we build FFmpeg instead of using a pre-built copy.
 
-As for Shotcut itself, its really as simple as:
-  mkdir build ; cd build ; qmake .. ; make
+As for Shotcut itself:
+  cd shotcut; mkdir build ; cd build ; cmake .. ; cmake --build .
 
 Then, there is the app bundling so that dependencies can be located and Qt
 plugins included. For that you really need to see the build script; it
@@ -1420,212 +1566,81 @@ function configure_compile_install_subproject {
   log PKG_CONFIG_PATH=$PKG_CONFIG_PATH
   export CFLAGS=`lookup CFLAGS_ $1`
   log CFLAGS=$CFLAGS
+  export CXXFLAGS=`lookup CXXFLAGS_ $1`
+  log CXXFLAGS=$CFLAGS
   export LDFLAGS=`lookup LDFLAGS_ $1`
   log LDFLAGS=$LDFLAGS
 
+  MYPRECONFIG=`lookup PRECONFIG $1`
   MYCONFIG=`lookup CONFIG $1`
+  MYBUILD=`lookup BUILD $1`
+  MYINSTALL=`lookup INSTALL $1`
 
+  #####
   # Configure
   if [ "$ACTION_CONFIGURE" = "1" ]; then
 
   feedback_status Configuring $1
 
-  # Special hack for ffmpeg on Windows
-  if [ "FFmpeg" = "$1" ] && [ "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ]; then
-    cmd sed 's/fopen(/av_fopen_utf8(/' -i libavfilter/vf_lut3d.c
-  fi
-
-  # Special hack for frei0r
-  if test "frei0r" = "$1" -a ! -e configure ; then
-    debug "Need to create configure for $1"
-    cmd ./autogen.sh || die "Unable to create configure file for $1"
-    if test ! -e configure ; then
-      die "Unable to confirm presence of configure file for $1"
-    fi
-  fi
-
-  # Special hack for mlt
-  if test "mlt" = "$1"; then
-    export CXXFLAGS="$CFLAGS -std=c++11"
-  fi
-
-  # Special hack for shotcut
-  if test "shotcut" = "$1" -a \( "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" \) ; then
-    sed 's/QMAKE_LIBS_OPENGL = -lGL//' -i /root/Qt/$QT_VERSION_DEFAULT/gcc_64/mkspecs/modules/qt_lib_gui_private.pri
-  fi
-
-  # Special hack for movit
-  if test "movit" = "$1"; then
-    export CXXFLAGS="$CFLAGS"
-  fi
-
-  # Special hack for vid.stab on Windows
-  if test "vid.stab" = "$1" -a "$TARGET_OS" = "Win32"; then
-    sed 's/-O3/-O2/' -i CMakeLists.txt
-  fi
-
-  # Special hack for libopus
-  if test "opus" = "$1" -a ! -e configure ; then
-    debug "Need to create configure for $1"
-    cmd ./autogen.sh || die "Unable to create configure file for $1"
-    if test ! -e configure ; then
-      die "Unable to confirm presence of configure file for $1"
-    fi
-  fi
-
-  # Special hack for x265
-  if test "x265" = "$1"; then
-    [ ! -d "10bit" ] && mkdir 10bit
-    cd 10bit
-    cmd cmake -G Ninja -D ENABLE_CLI=OFF -D ENABLE_SHARED=OFF -D EXPORT_C_API=OFF -D HIGH_BIT_DEPTH=ON $CMAKE_DEBUG_FLAG ../source
-    cmd ninja
-    cd ../source
-    cmd ln -s ../10bit/libx265.a libx265_main10.a
-  fi
-
-  # Special hack for AMF
-  if test "AMF" = "$1" -a ! -d "$FINAL_INSTALL_DIR/include/AMF"; then
-    cmd rm -rf Thirdparty
-    cmd mkdir -p "$FINAL_INSTALL_DIR/include/AMF"
-    cmd cp -av "amf/public/include/." "$FINAL_INSTALL_DIR/include/AMF"
-  fi
-
-  # Special hack for mfx_dispatch
-  if test "mfx_dispatch" = "$1" -a ! -e configure ; then
-    debug "Need to create configure for $1"
-    cmd autoreconf -fiv || die "Unable to create configure file for $1"
-    cmd automake --add-missing || die "Unable to create makefile for $1"
-    if test ! -e configure ; then
-      die "Unable to confirm presence of configure file for $1"
-    fi
-  fi
-
-  # Special hack for zimg
-  if test "zimg" = "$1" -a ! -e configure ; then
-    debug "Need to create configure for $1"
-    cmd ./autogen.sh || die "Unable to create configure file for $1"
-    if test ! -e configure ; then
-      die "Unable to confirm presence of configure file for $1"
-    fi
+  if test "$MYPRECONFIG" != ""; then
+    cmd $MYPRECONFIG || die "Unable to pre-configure $1"
+    feedback_status Done pre-configuring $1
   fi
 
   # Special hack for aom
   if test "aom" = "$1"; then
-    cmd mkdir -p ../build-aom
-    cmd cd ../build-aom || die "Unable to change to directory aom/builddir"
+   cmd mkdir -p ../build-aom
+   cmd cd ../build-aom || die "Unable to change to directory aom/builddir"
   fi
 
-  # Special hack for swh-plugins
-  if test "ladspa" = "$1"; then
-    cmd autoreconf -i
-  fi
-
-  if test "$MYCONFIG" != ""; then
+  if [ "$MYCONFIG" != "" ]; then
     cmd $MYCONFIG || die "Unable to configure $1"
     feedback_status Done configuring $1
   fi
 
-  # Special hack for rubberband post-configure
-  if [ "rubberband" = "$1" ]; then
-    if [ "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ]; then
-      cmd grep -q fftw3 rubberband.pc.in || sed 's/-lrubberband/-lrubberband -lfftw3-3 -lsamplerate/' -i rubberband.pc.in
-    fi
-  fi
-
   fi # if [ "$ACTION_CONFIGURE" = "1" ]
 
+  #####
   # Compile
   feedback_status Building $1 - this could take some time
-  if test "movit" = "$1" ; then
-    cmd make -j$MAKEJ RANLIB="$RANLIB" libmovit.la || die "Unable to build $1"
-  elif test "dav1d" = "$1" -o "rubberband" = "$1" ; then
-    cmd ninja -C builddir -j $MAKEJ || die "Unable to build $1"
-  elif test "aom" = "$1" -o "mlt" = "$1"; then
-    cmd ninja -j $MAKEJ || die "Unable to build $1"
-  elif test "x265" = "$1" ; then
-    cmd ninja -j $MAKEJ || die "Unable to build $1"
-    cmd mv libx265.a libx265_main.a
-    ar -M <<EOF
-CREATE libx265.a
-ADDLIB libx265_main.a
-ADDLIB libx265_main10.a
-SAVE
-END
-EOF
-  elif test "vmaf" = "$1" ; then
-    cmd ninja -C libvmaf/build -j $MAKEJ || die "Unable to build $1"
-  elif test "$MYCONFIG" != ""; then
-    cmd make -j$MAKEJ || die "Unable to build $1"
+  if [ "$MYBUILD" != "" ]; then
+    cmd $MYBUILD || die "Unable to build $1"
   fi
+
   feedback_status Done building $1
 
+  #####
   # Install
   feedback_status Installing $1
-  export LD_LIBRARY_PATH=`lookup LD_LIBRARY_PATH_ $1`
-  log "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
-    if test "shotcut" = "$1" ; then
-      if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-        cmd make install
-        cmd install -c -m 755 src/shotcut.exe "$FINAL_INSTALL_DIR"
-        cmd install -c COPYING "$FINAL_INSTALL_DIR"
-        cmd install -c packaging/windows/shotcut.nsi "$FINAL_INSTALL_DIR"/..
-        cmd sed -i "s/YY.MM.DD/$SHOTCUT_VERSION/" "$FINAL_INSTALL_DIR"/../shotcut.nsi
-        if [ "$TARGET_OS" = "Win64" ]; then
-          cmd sed -i 's/PROGRAMFILES/PROGRAMFILES64/' "$FINAL_INSTALL_DIR"/../shotcut.nsi
-        fi
-        cmd install -d "$FINAL_INSTALL_DIR"/share/translations
-        cmd install -p -c translations/*.qm "$FINAL_INSTALL_DIR"/share/translations
-        cmd install -d "$FINAL_INSTALL_DIR"/share/shotcut
-        cmd cp -a src/qml "$FINAL_INSTALL_DIR"/share/shotcut
+  if [ "$MYINSTALL" != "" ]; then
+    cmd $MYINSTALL || die "Unable to install $1"
+  fi
 
-      elif test "$TARGET_OS" != "Darwin"; then
-        cmd make install
-        cmd install -p -c COPYING "$FINAL_INSTALL_DIR"
-        cmd install -p -c "$QTDIR"/translations/qt_*.qm "$FINAL_INSTALL_DIR"/share/shotcut/translations
-        cmd install -p -c "$QTDIR"/translations/qtbase_*.qm "$FINAL_INSTALL_DIR"/share/shotcut/translations
-        cmd install -p -c "$QTDIR"/lib/libQt5{Core,DBus,Gui,Multimedia,Network,OpenGL,Qml,QmlModels,QmlWorkerScript,Quick,QuickControls2,QuickTemplates2,QuickWidgets,Sql,Svg,WebSockets,Widgets,Xml,X11Extras,XcbQpa}.so.5 "$FINAL_INSTALL_DIR"/lib
-        cmd install -p -c "$QTDIR"/lib/lib{icudata,icui18n,icuuc}.so* "$FINAL_INSTALL_DIR"/lib
-        cmd install -d "$FINAL_INSTALL_DIR"/lib/qt5/sqldrivers
-        cmd cp -a "$QTDIR"/plugins/{audio,egldeviceintegrations,generic,iconengines,imageformats,mediaservice,platforminputcontexts,platforms,platformthemes,wayland-decoration-client,wayland-graphics-integration-client,wayland-graphics-integration-server,wayland-shell-integration,xcbglintegrations} "$FINAL_INSTALL_DIR"/lib/qt5
-        cmd cp -p "$QTDIR"/plugins/sqldrivers/libqsqlite.so "$FINAL_INSTALL_DIR"/lib/qt5/sqldrivers
-        cmd cp -a "$QTDIR"/qml "$FINAL_INSTALL_DIR"/lib
-#        cmd curl -o "$FINAL_INSTALL_DIR"/lib/qml/QtQuick/Controls.2/Fusion/ComboBox.qml "https://s3.amazonaws.com/misc.meltymedia/shotcut-build/ComboBox.qml"
-        cmd install -d "$FINAL_INSTALL_DIR"/lib/va
-        cmd install -p -c /usr/lib/x86_64-linux-gnu/dri/*_drv_video.so "$FINAL_INSTALL_DIR"/lib/va
-      fi
-    elif test "bigsh0t" = "$1" ; then
-      if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-        cmd install -p -c *.dll "$FINAL_INSTALL_DIR"/lib/frei0r-1  || die "Unable to install $1"
-      else
-        cmd install -p -c *.so "$FINAL_INSTALL_DIR"/lib/frei0r-1  || die "Unable to install $1"
-      fi
-    elif test "dav1d" = "$1" -o "rubberband" = "$1" ; then
-      cmd meson install -C builddir || die "Unable to install $1"
-    elif test "aom" = "$1" -o "mlt" = "$1" -o "x265" = "$1" ; then
-      cmd ninja install || die "Unable to install $1"
-    elif test "vmaf" = "$1" ; then
-      cmd ninja install -C libvmaf/build || die "Unable to install $1"
-      cmd install -d "$FINAL_INSTALL_DIR"/share/vmaf
-      cmd install -p -c model/*.json "$FINAL_INSTALL_DIR"/share/vmaf || die "Unable to install $1"
-    elif test "ladspa" = "$1" ; then
-      cmd make install || die "Unable to install $1"
-      cmd install -p -c ladspa.h "$FINAL_INSTALL_DIR"/include || die "Unable to install ladspa.h"
-    elif test "$MYCONFIG" != "" ; then
-      cmd make install || die "Unable to install $1"
+  # Special hack for macOS
+  if [ "Darwin" = "$TARGET_OS" ]; then
+    # CMake identifies the dylibs with an @rpath that breaks our recursive bundling process.
+    # These names need to changed immediately after each lib is installed so that dependants
+    # link using the full name, and the bundling process can locate the dependency.
+    if [ "aom" = "$1" -o "x265" = "$1" ]; then
+      replace_rpath $1
+    elif [ "mlt" = "$1" ]; then
+      replace_rpath mlt-7
+      replace_rpath mlt++-7
+    elif [ "opencv" = "$1" ]; then
+      replace_rpath opencv_core
+      replace_rpath opencv_imgproc
+      replace_rpath opencv_plot
+      replace_rpath opencv_tracking
+      replace_rpath opencv_video
+    elif [ "libspatialaudio" = "$1" ]; then
+      replace_rpath spatialaudio
+    elif [ "SVT-AV1" = "$1" ]; then
+      replace_rpath SvtAv1Enc
+    elif [ "vid.stab" = "$1" ]; then
+      cmd sed -e 's/-fopenmp//' -i .bak "$FINAL_INSTALL_DIR/lib/pkgconfig/vidstab.pc"
     fi
-    if [ "Darwin" = "$TARGET_OS" ]; then
-      # CMake identifies the dylibs with an @rpath that breaks our recursive bundling process.
-      # These names need to changed immediately after each lib is installed so that dependants
-      # link using the full name, and the bundling process can locate the dependency.
-      if [ "aom" = "$1" -o "x265" = "$1" ]; then
-        replace_rpath $1
-      elif [ "mlt" = "$1" ]; then
-        replace_rpath mlt-7
-        replace_rpath mlt++-7
-      elif [ "vid.stab" = "$1" ]; then
-        cmd sed -e 's/-fopenmp//' -i .bak "$FINAL_INSTALL_DIR/lib/pkgconfig/vidstab.pc"
-      fi
-    fi
+  fi
+
   feedback_status Done installing $1
 
   # Reestablish
@@ -1655,12 +1670,13 @@ function configure_compile_install_all {
 
   if [ "$ACTION_ARCHIVE" = "1" ] && [ "$TARGET_OS" = "Linux" ]; then
     log Copying some libs from system
-    for lib in "$FINAL_INSTALL_DIR"/lib/qt5/{audio,generic,iconengines,imageformats,mediaservice,platforms,platforminputcontexts,platformthemes,xcbglintegrations}/*.so; do
+    for lib in "$FINAL_INSTALL_DIR"/lib/qt6/{egldeviceintegrations,generic,iconengines,imageformats,multimedia,platforminputcontexts,platforms,platformthemes,tls,wayland-decoration-client,wayland-graphics-integration-client,wayland-shell-integration,xcbglintegrations}/*.so; do
       bundle_libs "$lib"
     done
     for lib in "$FINAL_INSTALL_DIR"/{lib,lib/mlt,lib/frei0r-1,lib/ladspa,lib/va}/*.so*; do
       bundle_libs "$lib"
     done
+    bundle_libs "$FINAL_INSTALL_DIR"/bin/glaxnimate
     cmd rm *.bundled
   fi
 
@@ -1782,7 +1798,12 @@ function bundle_libs
          ($3 !~ /\/libpango-1.0\./) &&
          ($3 !~ /\/libjack\./) &&
          ($3 !~ /nvidia/) &&
-         ($3 !~ /\/libcairo\./) \
+         ($3 !~ /\/libcairo\./) &&
+         ($3 !~ /\/libedit\./) &&
+         ($3 !~ /\/libgio-2.0\./) &&
+         ($3 !~ /\/libgmodule-2.0\./) &&
+         ($3 !~ /\/libpixman-1\./) &&
+         ($3 !~ /\/libwayland/) \
          {print $3}')
   for lib in $libs; do
     basename_lib=$(basename "$lib")
@@ -1844,43 +1865,49 @@ function deploy_mac
   log Changing directory to shotcut
   cmd cd shotcut || die "Unable to change to directory shotcut"
 
-  BUILD_DIR="src/Shotcut.app/Contents"
+  BUILD_DIR="./Shotcut.app/Contents"
 
   # copy Qt translations
-  cmd mkdir "$BUILD_DIR/Resources/translations"
+  cmd mkdir -p "$BUILD_DIR/Resources/shotcut/translations"
   # try QTDIR first
   if [ -d "$QTDIR/translations" ]; then
-    cmd cp -p "$QTDIR"/translations/qt_*.qm "$BUILD_DIR/Resources/translations/"
-    cmd cp -p "$QTDIR"/translations/qtbase_*.qm "$BUILD_DIR/Resources/translations/"
+    cmd cp -p "$QTDIR"/translations/qt_*.qm "$BUILD_DIR/Resources/shotcut/translations/"
+    cmd cp -p "$QTDIR"/translations/qtbase_*.qm "$BUILD_DIR/Resources/shotcut/translations/"
   # try Qt Creator after that
   elif [ -d "/Applications/Qt Creator.app/Contents/Resources/translations" ]; then
-    cmd cp -p "/Applications/Qt Creator.app/Contents/Resources/translations/"qt_*.qm "$BUILD_DIR/Resources/translations/"
-    cmd cp -p "/Applications/Qt Creator.app/Contents/Resources/translations/"qtbase_*.qm "$BUILD_DIR/Resources/translations/"
+    cmd cp -p "/Applications/Qt Creator.app/Contents/Resources/translations/"qt_*.qm "$BUILD_DIR/Resources/shotcut/translations/"
+    cmd cp -p "/Applications/Qt Creator.app/Contents/Resources/translations/"qtbase_*.qm "$BUILD_DIR/Resources/shotcut/translations/"
   fi
   # copy Shotcut translations
-  cmd cp translations/*.qm "$BUILD_DIR/Resources/translations/"
+  cmd cp translations/*.qm "$BUILD_DIR/Resources/shotcut/translations/"
 
-  # copy Shotcut QML
-  cmd mkdir -p "$BUILD_DIR"/Resources/shotcut 2>/dev/null
-  cmd cp -a src/qml "$BUILD_DIR"/Resources/shotcut
-
-  # This little guy helps Qt 5 apps find the Qt plugins!
+  # This little guy helps Qt apps find the Qt plugins!
   printf "[Paths]\nPlugins=PlugIns/qt\nQml2Imports=Resources/qml\n" > "$BUILD_DIR/Resources/qt.conf"
 
   cmd cd "$BUILD_DIR" || die "Unable to change directory to $BUILD_DIR"
 
   log Copying supplementary executables
   cmd mkdir -p MacOS 2>/dev/null
-  cmd cp -a "$FINAL_INSTALL_DIR"/bin/{melt,ffmpeg,ffplay,ffprobe} MacOS
+  cmd cp -a "$FINAL_INSTALL_DIR"/bin/{melt,ffmpeg,ffplay,ffprobe,glaxnimate,gopro2gpx,whisper-cli} MacOS
   cmd mkdir -p Frameworks 2>/dev/null
-  for exe in MacOS/Shotcut MacOS/melt MacOS/ffmpeg MacOS/ffplay MacOS/ffprobe; do
+  cmd cp -p ../../lib/libCuteLogger.dylib Frameworks
+  for exe in MacOS/Shotcut MacOS/melt MacOS/ffmpeg MacOS/ffplay MacOS/ffprobe MacOS/glaxnimate; do
     fixlibs "$exe"
     log fixing rpath of executable "$exe"
     cmd install_name_tool -delete_rpath "$FINAL_INSTALL_DIR/lib" "$exe" 2> /dev/null
     cmd install_name_tool -delete_rpath "$QTDIR/lib" "$exe" 2> /dev/null
     cmd install_name_tool -add_rpath "@executable_path/../Frameworks" "$exe"
   done
-  cmd cp -p "$FINAL_INSTALL_DIR"/lib/libaom.2.dylib Frameworks
+  cmd cp -p /opt/local/lib/libaom.3.dylib Frameworks
+
+  # whisper.cpp
+  cmd cp -p "$FINAL_INSTALL_DIR"/lib/libwhisper.1.dylib Frameworks
+  cmd cp -p "$FINAL_INSTALL_DIR"/lib/libggml*.dylib Frameworks
+  fixlibs MacOS/whisper-cli
+  log fixing rpath of executable "whisper-cli"
+  cmd install_name_tool -delete_rpath "$SOURCE_DIR"/whisper.cpp/build/src MacOS/whisper-cli 2> /dev/null
+  cmd install_name_tool -delete_rpath "$SOURCE_DIR"/whisper.cpp/build/ggml/src MacOS/whisper-cli 2> /dev/null
+  cmd install_name_tool -add_rpath "@executable_path/../Frameworks" MacOS/whisper-cli
 
   # MLT plugins
   log Copying MLT plugins
@@ -1899,11 +1926,11 @@ function deploy_mac
   cmd mkdir -p PlugIns/qt/sqldrivers 2>/dev/null
   # try QTDIR first
   if [ -d "$QTDIR/plugins" ]; then
-    cmd cp -a "$QTDIR/plugins"/{audio,generic,iconengines,imageformats,mediaservice,platforms,styles} PlugIns/qt
+    cmd cp -a "$QTDIR/plugins"/{generic,iconengines,imageformats,mediaservice,multimedia,platforms,styles,tls} PlugIns/qt
     cmd cp -p "$QTDIR/plugins/sqldrivers/libqsqlite.dylib" PlugIns/qt/sqldrivers
   # try Qt Creator next
   elif [ -d "/Applications/Qt Creator.app/Contents/PlugIns" ]; then
-    cmd cp -a "/Applications/Qt Creator.app/Contents/PlugIns"/{audio,generic,iconengines,imageformats,mediaservice,platforms,styles} PlugIns/qt
+    cmd cp -a "/Applications/Qt Creator.app/Contents/PlugIns"/{generic,iconengines,imageformats,mediaservice,multimedia,platforms,styles,tls} PlugIns/qt
   fi
   for dir in PlugIns/qt/*; do
     for lib in $dir/*; do
@@ -1913,13 +1940,8 @@ function deploy_mac
 
   # Qt QML modules
   log Copying Qt QML modules
-  # try QTDIR first
-  if [ -d "$QTDIR/qml" ]; then
-    cmd cp -a "$QTDIR/qml" Resources
-  # try Qt Creator next
-  elif [ -d "/Applications/Qt Creator.app/Contents/Imports/qtquick2" ]; then
-    cmd cp -a "/Applications/Qt Creator.app/Contents/Imports/qtquick2" Resources/qml
-  fi
+  cmd mkdir -p Resources/qml 2>/dev/null
+  cmd cp -a "$QTDIR"/qml/{Qt,QtCore,QtQml,QtQuick} Resources/qml
   for lib in $(find Resources -name '*.dylib'); do
     fixlibs "$lib"
   done
@@ -1949,6 +1971,16 @@ function deploy_mac
   log Copying VMAF models
   cmd cp -a "$FINAL_INSTALL_DIR"/share/vmaf Resources
 
+  # Glaxnimate data
+  log Copying Glaxnimate data
+  cmd cp -a "$FINAL_INSTALL_DIR"/share/glaxnimate Resources
+  cmd install -d lib
+  cmd cp -pLR /opt/local/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION_DARWIN}/lib/python${PYTHON_VERSION_DARWIN} lib
+
+  # Whisper.cpp models
+  log Copying Whisper.cpp models
+  cmd cp -a "$FINAL_INSTALL_DIR"/share/shotcut/whisper_models Resources/shotcut
+
   log Fixing rpath in libraries
   cmd find . -name '*.dylib' -exec sh -c "install_name_tool -delete_rpath \"/opt/local/lib/libomp\" {} 2> /dev/null" \;
   cmd find . -name '*.dylib' -exec sh -c "install_name_tool -delete_rpath \"$FINAL_INSTALL_DIR/lib\" {} 2> /dev/null" \;
@@ -1966,7 +1998,7 @@ function deploy_mac
   if [ "$SDK" = "1" ]; then
     # Prepare src for archiving
     cmd rm -rf "$INSTALL_DIR"/Shotcut
-    cmd mv shotcut/src/Shotcut.app "$INSTALL_DIR"/Shotcut
+    cmd mv shotcut/Shotcut.app "$INSTALL_DIR"/Shotcut
     clean_dirs
     pushd "$INSTALL_DIR"
     log Copying src
@@ -1978,7 +2010,7 @@ function deploy_mac
     cmd cp -a "$FINAL_INSTALL_DIR"/lib/pkgconfig Shotcut/Contents/Frameworks/lib
     log Symlinking libs
     pushd Shotcut/Contents/Frameworks
-    for lib in avcodec avdevice avfilter avformat avutil epoxy mlt++-7 mlt-7 movit mp3lame opus postproc swresample swscale vidstab x264 x265; do
+    for lib in avcodec avdevice avfilter avformat avutil epoxy mlt++-7 mlt-7 movit mp3lame opus postproc swresample swscale vidstab whisper x264 x265; do
       dylib=$(ls lib$lib.*.dylib | head -n 1)
       cmd ln -sf $dylib lib$lib.dylib
     done
@@ -1996,7 +2028,7 @@ function deploy_mac
       log Staging disk image
       cmd rm -rf staging 2>/dev/null
       cmd mkdir staging
-      cmd mv shotcut/src/Shotcut.app staging
+      cmd mv shotcut/Shotcut.app staging
       cmd ln -s /Applications staging
       cmd cp shotcut/COPYING staging
 
@@ -2004,157 +2036,13 @@ function deploy_mac
       dmg_name="$INSTALL_DIR/unsigned.dmg"
       cmd rm "$dmg_name" 2>/dev/null
       sync
-      cmd hdiutil create -fs HFS+ -srcfolder staging -volname Shotcut -format UDBZ -size 800m "$dmg_name"
+      cmd hdiutil create -fs HFS+ -srcfolder staging -volname Shotcut -format UDBZ -size 1500m "$dmg_name"
 
       if [ "$ACTION_CLEANUP" = "1" ]; then
         cmd rm -rf staging
       fi
     fi
   fi
-}
-
-function deploy_win32
-{
-  trace "Entering deploy_win32 @ = $@"
-  pushd .
-
-  # Change to right directory
-  log Changing directory to $FINAL_INSTALL_DIR
-  cmd cd $FINAL_INSTALL_DIR || die "Unable to change to directory $FINAL_INSTALL_DIR"
-
-  cmd mv bin/*.dll .
-  if [ "$SDK" = "1" ]; then
-    cmd mv bin/*.exe .
-  else
-    cmd mv bin/ffmpeg.exe .
-    cmd mv bin/ffplay.exe .
-    cmd mv bin/ffprobe.exe .
-    cmd rm -rf bin include etc man manifest src *.txt
-    cmd rm lib/*
-    cmd rm -rf lib/cmake lib/pkgconfig lib/gdk-pixbuf-2.0 lib/glib-2.0 lib/gtk-2.0
-    cmd rm -rf share/doc share/man share/ffmpeg/examples share/aclocal share/glib-2.0 share/gtk-2.0 share/gtk-doc share/themes share/locale
-  fi
-  for exe in *.exe; do
-    cmd touch "${exe}.local"
-  done
-  cmd mv COPYING COPYING.txt
-  if [ "$DEBUG_BUILD" != "1" -o "$SDK" = "1" ]; then
-    cmd cp -p "$QTDIR"/bin/Qt5{Concurrent,Core,Declarative,Gui,Multimedia,MultimediaQuick_p,MultimediaWidgets,Network,OpenGL,Positioning,PrintSupport,Qml,QmlModels,QmlWorkerScript,QuickParticles,Quick,QuickWidgets,Script,Sensors,Sql,Svg,WebChannel,WebSockets,Widgets,Xml,XmlPatterns}.dll .
-  fi
-  if [ "$DEBUG_BUILD" = "1" -o "$SDK" = "1" ]; then
-    cmd cp -p "$QTDIR"/bin/Qt5{Concurrent,Core,Declarative,Gui,Multimedia,MultimediaQuick_p,MultimediaWidgets,Network,OpenGL,Positioning,PrintSupport,Qml,QmlModels,QmlWorkerScript,QuickParticles,Quick,QuickWidgets,Script,Sensors,Sql,Svg,WebChannel,WebSockets,Widgets,Xml,XmlPatterns}d.dll .
-  fi
-  cmd cp -p "$QTDIR"/bin/{icudt57,icuin57,icuuc57,libEGL,libGLESv2,d3dcompiler_47,libeay32,ssleay32}.dll .
-  if [ "$TARGET_OS" = "Win64" ]; then
-    cmd cp -p /opt/mxe/usr/x86_64-w64-mingw32.shared/bin/{libgcc_s_seh-1,libgomp-1,libstdc++-6,libwinpthread-1}.dll .
-  else
-    cmd cp -p /opt/mxe/usr/i686-w64-mingw32.shared/bin/{libgcc_s_sjlj-1,libgomp-1,libstdc++-6,libwinpthread-1}.dll .
-  fi
-  if [ "$TARGET_OS" = "Win64" ] && [ "$DEBUG_BUILD" = "1" -o "$SDK" = "1" ]; then
-    cmd cp -p "$SOURCE_DIR"/shotcut/drmingw/x64/bin/*.{dll,yes} .
-  fi
-  cmd mkdir -p lib/qt5/sqldrivers
-  cmd cp -pr "$QTDIR"/plugins/{audio,generic,iconengines,imageformats,mediaservice,platforminputcontexts,platforms,sqldrivers} lib/qt5
-  cmd cp -pr "$QTDIR"/qml lib
-  cmd cp -pr "$QTDIR"/translations/qt_*.qm share/translations
-  cmd cp -pr "$QTDIR"/translations/qtbase_*.qm share/translations
-  cmd rm lib/qt5/sqldrivers/qsqlodbc*.dll
-  if [ "$DEBUG_BUILD" != "1" -a "$SDK" != "1" ]; then
-    cmd rm lib/qt5/audio/qtaudio_windowsd.dll
-    cmd rm lib/qt5/generic/qtuiotouchplugind.dll
-    cmd rm lib/qt5/iconengines/qsvgicond.dll
-    cmd rm lib/qt5/imageformats/qddsd.dll
-    cmd rm lib/qt5/imageformats/qgifd.dll
-    cmd rm lib/qt5/imageformats/qicod.dll
-    cmd rm lib/qt5/imageformats/qicnsd.dll
-    cmd rm lib/qt5/imageformats/qjpegd.dll
-    cmd rm lib/qt5/imageformats/qsvgd.dll
-    cmd rm lib/qt5/imageformats/qtgad.dll
-    cmd rm lib/qt5/imageformats/qtiffd.dll
-    cmd rm lib/qt5/imageformats/qwbmpd.dll
-    cmd rm lib/qt5/imageformats/qwebpd.dll
-    cmd rm lib/qt5/mediaservice/dsengined.dll
-    cmd rm lib/qt5/mediaservice/qtmedia_audioengined.dll
-    cmd rm lib/qt5/platforms/qminimald.dll
-    cmd rm lib/qt5/platforms/qoffscreend.dll
-    cmd rm lib/qt5/platforms/qwindowsd.dll
-    cmd rm lib/qt5/sqldrivers/qsqlited.dll
-
-    cmd rm lib/qml/QtLocation/declarative_locationd.dll
-    cmd rm lib/qml/QtQml/StateMachine/qtqmlstatemachined.dll
-    cmd rm lib/qml/QtQml/Models.2/modelsplugind.dll
-    cmd rm lib/qml/QtCanvas3D/qtcanvas3dd.dll
-    cmd rm lib/qml/QtPositioning/declarative_positioningd.dll
-    cmd rm lib/qml/QtWinExtras/qml_winextrasd.dll
-    cmd rm lib/qml/QtQuick.2/qtquick2plugind.dll
-    cmd rm lib/qml/Qt/labs/settings/qmlsettingsplugind.dll
-    cmd rm lib/qml/Qt/labs/folderlistmodel/qmlfolderlistmodelplugind.dll
-    cmd rm lib/qml/QtWebSockets/declarative_qmlwebsocketsd.dll
-    cmd rm lib/qml/QtBluetooth/declarative_bluetoothd.dll
-    cmd rm lib/qml/QtTest/qmltestplugind.dll
-    cmd rm lib/qml/QtQuick/LocalStorage/qmllocalstorageplugind.dll
-    cmd rm lib/qml/QtQuick/Window.2/windowplugind.dll
-    cmd rm lib/qml/QtQuick/Dialogs/dialogplugind.dll
-    cmd rm lib/qml/QtQuick/Dialogs/Private/dialogsprivateplugind.dll
-    cmd rm lib/qml/QtQuick/PrivateWidgets/widgetsplugind.dll
-    cmd rm lib/qml/QtQuick/Layouts/qquicklayoutsplugind.dll
-    cmd rm lib/qml/QtQuick/Controls/qtquickcontrolsplugind.dll
-    cmd rm lib/qml/QtQuick/Controls/Styles/Flat/qtquickextrasflatplugind.dll
-    cmd rm lib/qml/QtQuick/Particles.2/particlesplugind.dll
-    cmd rm lib/qml/QtQuick/Extras/qtquickextrasplugind.dll
-    cmd rm lib/qml/QtQuick/XmlListModel/qmlxmllistmodelplugind.dll
-    cmd rm lib/qml/QtSensors/declarative_sensorsd.dll
-    cmd rm lib/qml/QtMultimedia/declarative_multimediad.dll
-    cmd rm lib/qml/QtNfc/declarative_nfcd.dll
-    cmd rm lib/qml/QtWebChannel/declarative_webchanneld.dll
-    cmd rm lib/qml/Qt/labs/calendar/qtlabscalendarplugind.dll
-    cmd rm lib/qml/Qt/labs/platform/qtlabsplatformplugind.dll
-    cmd rm lib/qml/Qt/labs/sharedimage/sharedimageplugind.dll
-    cmd rm lib/qml/Qt3D/Animation/quick3danimationplugind.dll
-    cmd rm lib/qml/Qt3D/Core/quick3dcoreplugind.dll
-    cmd rm lib/qml/Qt3D/Extras/quick3dextrasplugind.dll
-    cmd rm lib/qml/Qt3D/Input/quick3dinputplugind.dll
-    cmd rm lib/qml/Qt3D/Logic/quick3dlogicplugind.dll
-    cmd rm lib/qml/Qt3D/Render/quick3drenderplugind.dll
-    cmd rm lib/qml/QtCharts/qtchartsqml2d.dll
-    cmd rm lib/qml/QtDataVisualization/datavisualizationqml2d.dll
-    cmd rm lib/qml/QtGamepad/declarative_gamepadd.dll
-    cmd rm lib/qml/QtGraphicalEffects/private/qtgraphicaleffectsprivated.dll
-    cmd rm lib/qml/QtGraphicalEffects/qtgraphicaleffectsplugind.dll
-    cmd rm lib/qml/QtPurchasing/declarative_purchasingd.dll
-    cmd rm lib/qml/QtQml/RemoteObjects/qtqmlremoteobjectsd.dll
-    cmd rm lib/qml/QtQuick/Controls.2/Material/qtquickcontrols2materialstyleplugind.dll
-    cmd rm lib/qml/QtQuick/Controls.2/qtquickcontrols2plugind.dll
-    cmd rm lib/qml/QtQuick/Controls.2/Universal/qtquickcontrols2universalstyleplugind.dll
-    cmd rm lib/qml/QtQuick/Scene2D/qtquickscene2dplugind.dll
-    cmd rm lib/qml/QtQuick/Scene3D/qtquickscene3dplugind.dll
-    cmd rm lib/qml/QtQuick/Templates.2/qtquicktemplates2plugind.dll
-    cmd rm lib/qml/QtQuick/VirtualKeyboard/Styles/qtvirtualkeyboardstylesplugind.dll
-    cmd rm lib/qml/QtScxml/declarative_scxmld.dll
-  fi
-  if [ "$TARGET_OS" = "Win32" ]; then
-    cmd tar -xJf "$HOME/swh-plugins-win32-0.4.15.tar.xz"
-  else
-    cmd tar -xJf "$HOME/swh-plugins-win64-0.4.15.tar.xz"
-  fi
-  printf "[Paths]\nPlugins=lib/qt5\nQml2Imports=lib/qml\n" > qt.conf
-
-  if [ "$ACTION_ARCHIVE" = "1" ]; then
-    if [ "$SDK" = "1" ]; then
-      # Prepare src for archiving
-      pushd .
-      clean_dirs
-      popd
-      log Copying src
-      cmd rm -rf src 2> /dev/null
-      cmd cp -a $SOURCE_DIR .
-
-      log Creating archive
-      cmd cd ..
-      cmd zip -gr shotcut-sdk.zip Shotcut
-    fi
-  fi
-  popd
 }
 
 #################################################################
@@ -2165,10 +2053,9 @@ function create_startup_script {
   if test "$TARGET_OS" = "Darwin" ; then
     deploy_mac
     return
-  elif test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    deploy_win32
-    return
   fi
+
+  cmd cp -pLR /usr/lib/python${PYTHON_VERSION_DEFAULT} "$FINAL_INSTALL_DIR"/lib
 
   trace "Entering create_startup_script @ = $@"
   pushd .
@@ -2198,7 +2085,7 @@ export LADSPA_PATH="\$INSTALL_DIR/lib/ladspa"
 export LIBVA_DRIVERS_PATH="\$INSTALL_DIR/lib/va"
 export MANPATH=\$MANPATH:"\$INSTALL_DIR/share/man"
 export PKG_CONFIG_PATH="\$INSTALL_DIR/lib/pkgconfig":\$PKG_CONFIG_PATH
-export QT_PLUGIN_PATH="\$INSTALL_DIR/lib/qt5"
+export QT_PLUGIN_PATH="\$INSTALL_DIR/lib/qt6"
 export QML2_IMPORT_PATH="\$INSTALL_DIR/lib/qml"
 End-of-environment-setup-template
   if test 0 != $? ; then
@@ -2208,7 +2095,7 @@ End-of-environment-setup-template
   cp $TMPFILE "$FINAL_INSTALL_DIR/source-me" || die "Unable to create environment script - cp failed"
 
   log Creating wrapper scripts in $TMPFILE
-  for exe in melt ffmpeg ffplay ffprobe; do
+  for exe in melt ffmpeg ffplay ffprobe glaxnimate whisper-cli; do
     cat > $TMPFILE <<End-of-exe-wrapper
 #!/bin/sh
 # Set up environment
@@ -2223,7 +2110,8 @@ export MLT_MOVIT_PATH="\$INSTALL_DIR/share/movit"
 export FREI0R_PATH="\$INSTALL_DIR/lib/frei0r-1"
 export LADSPA_PATH="\$LADSPA_PATH:/usr/local/lib/ladspa:/usr/lib/ladspa:/usr/lib64/ladspa:\$INSTALL_DIR/lib/ladspa"
 export LIBVA_DRIVERS_PATH="\$INSTALL_DIR/lib/va"
-export QT_PLUGIN_PATH="\$INSTALL_DIR/lib/qt5"
+export PYTHONHOME="\$INSTALL_DIR"
+export QT_PLUGIN_PATH="\$INSTALL_DIR/lib/qt6"
 export QML2_IMPORT_PATH="\$INSTALL_DIR/lib/qml"
 "\$INSTALL_DIR/bin/$exe" "\$@"
 End-of-exe-wrapper
@@ -2252,8 +2140,10 @@ export FREI0R_PATH="\$INSTALL_DIR/lib/frei0r-1"
 # export LADSPA_PATH="\$LADSPA_PATH:/usr/local/lib/ladspa:/usr/lib/ladspa:/usr/lib64/ladspa:\$INSTALL_DIR/lib/ladspa"
 export LADSPA_PATH="\$INSTALL_DIR/lib/ladspa"
 export LIBVA_DRIVERS_PATH="\$INSTALL_DIR/lib/va"
+export PYTHONHOME="\$INSTALL_DIR"
+sed --help >/dev/null && export XDG_DATA_DIRS="\$(echo "\$XDG_DATA_DIRS" | sed "s|\$(dirname "\$INSTALL_DIR")||")"
 cd "\$INSTALL_DIR"
-export QT_PLUGIN_PATH="lib/qt5"
+export QT_PLUGIN_PATH="lib/qt6"
 export QML2_IMPORT_PATH="lib/qml"
 bin/shotcut "\$@"
 End-of-shotcut-wrapper
@@ -2264,16 +2154,6 @@ End-of-shotcut-wrapper
   cp $TMPFILE "$FINAL_INSTALL_DIR/shotcut" || die "Unable to create wrapper script - cp failed"
 
   popd
-
-  log Creating desktop file in $TMPFILE
-  cp shotcut/packaging/linux/org.shotcut.Shotcut.desktop $TMPFILE
-  sed -i '1i #!/usr/bin/env xdg-open' $TMPFILE
-  sed -i 's|Exec=.*|Exec=sh -c "\$(dirname "%k")/Shotcut.app/shotcut "%F""|' $TMPFILE
-  sed -i 's|Icon=.*|Icon=applications-multimedia|' $TMPFILE
-  if test 0 != $? ; then
-    die "Unable to create desktop file"
-  fi
-  cp $TMPFILE "$FINAL_INSTALL_DIR/../Shotcut.desktop" || die "Unable to create desktop file - cp failed"
 
   feedback_status Done creating startup and environment script
 
@@ -2331,9 +2211,6 @@ function perform_action {
   fi
   if test 1 = "$GET"; then
     get_all_sources
-  fi
-  if test "$TARGET_OS" = "Win32" -o "$TARGET_OS" = "Win64" ; then
-    get_win32_prebuilt
   fi
   if test 1 = "$COMPILE_INSTALL" ; then
     sys_info

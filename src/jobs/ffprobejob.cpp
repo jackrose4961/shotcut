@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016 Meltytech, LLC
- * Author: Dan Dennedy <dan@dennedy.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +26,7 @@
 #include <QDir>
 #include <Logger.h>
 
-FfprobeJob::FfprobeJob(const QString& name, const QStringList& args)
+FfprobeJob::FfprobeJob(const QString &name, const QStringList &args)
     : AbstractJob(name)
 {
     m_args.append(args);
@@ -44,8 +43,7 @@ void FfprobeJob::start()
     QFileInfo ffprobePath(shotcutPath, "ffprobe");
     setReadChannel(QProcess::StandardOutput);
     LOG_DEBUG() << ffprobePath.absoluteFilePath()  + " " + m_args.join(' ');
-    QProcess::start(ffprobePath.absoluteFilePath(), m_args);
-    AbstractJob::start();
+    AbstractJob::start(ffprobePath.absoluteFilePath(), m_args);
 }
 
 void FfprobeJob::onFinished(int exitCode, QProcess::ExitStatus exitStatus)

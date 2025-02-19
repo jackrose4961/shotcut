@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Meltytech, LLC
+ * Copyright (c) 2015-2022 Meltytech, LLC
  * Author: Dan Dennedy <dan@dennedy.org>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Key Spill: Simple")
+    keywords: qsTr('chroma alpha clean suppress', 'search keywords for the Key Spill: Simple video filter') + ' key spill: simple'
     mlt_service: 'frei0r.spillsupress'
     qml: 'ui.qml'
 }

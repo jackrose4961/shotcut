@@ -55,7 +55,7 @@ DecklinkProducerWidget::DecklinkProducerWidget(QWidget *parent) :
         p.set("list_devices", 1);
         int n = p.get_int("devices");
         for (int i = 0; i < n; ++i) {
-            QString device(p.get(QString("device.%1").arg(i).toLatin1().constData()));
+            QString device(p.get(QStringLiteral("device.%1").arg(i).toLatin1().constData()));
             if (!device.isEmpty())
                 ui->deviceCombo->addItem(device);
         }
@@ -67,12 +67,13 @@ DecklinkProducerWidget::~DecklinkProducerWidget()
     delete ui;
 }
 
-Mlt::Producer* DecklinkProducerWidget::newProducer(Mlt::Profile& profile)
+Mlt::Producer *DecklinkProducerWidget::newProducer(Mlt::Profile &profile)
 {
-    Mlt::Producer* p = new Mlt::Producer(profile,
-        QString("consumer:decklink:%1").arg(ui->deviceCombo->currentIndex()).toLatin1().constData());
+    Mlt::Producer *p = new Mlt::Producer(profile,
+                                         QStringLiteral("consumer:decklink:%1").arg(ui->deviceCombo->currentIndex()).toLatin1().constData());
     if (p->is_valid()) {
-        p->set("profile", ui->profileCombo->itemData(ui->profileCombo->currentIndex()).toString().toLatin1().constData());
+        p->set("profile", ui->profileCombo->itemData(
+                   ui->profileCombo->currentIndex()).toString().toLatin1().constData());
         p->set(kBackgroundCaptureProperty, 2);
         p->set(kShotcutCaptionProperty, tr("SDI/HDMI").toUtf8().constData());
     }
@@ -87,7 +88,7 @@ Mlt::Properties DecklinkProducerWidget::getPreset() const
     return p;
 }
 
-void DecklinkProducerWidget::loadPreset(Mlt::Properties& p)
+void DecklinkProducerWidget::loadPreset(Mlt::Properties &p)
 {
     ui->deviceCombo->setCurrentIndex(p.get_int("card"));
     for (int i = 0; i < ui->profileCombo->count(); ++i) {
@@ -106,7 +107,7 @@ void DecklinkProducerWidget::on_deviceCombo_activated(int /*index*/)
         emit producerChanged(0);
         QCoreApplication::processEvents();
 
-        Mlt::Producer* p = newProducer(MLT.profile());
+        Mlt::Producer *p = newProducer(MLT.profile());
         AbstractProducerWidget::setProducer(p);
         MLT.setProducer(p);
         MLT.play();

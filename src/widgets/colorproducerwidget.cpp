@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2021 Meltytech, LLC
+ * Copyright (c) 2012-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,17 +27,17 @@
 
 static const QString kTransparent = QObject::tr("transparent", "Open Other > Color");
 
-static QString colorToString(const QColor& color)
+static QString colorToString(const QColor &color)
 {
     return (color == QColor(0, 0, 0, 0)) ? kTransparent
-                                : QString::asprintf("#%02X%02X%02X%02X",
-                                                    qAlpha(color.rgba()),
-                                                    qRed(color.rgba()),
-                                                    qGreen(color.rgba()),
-                                                    qBlue(color.rgba()));
+           : QString::asprintf("#%02X%02X%02X%02X",
+                               qAlpha(color.rgba()),
+                               qRed(color.rgba()),
+                               qGreen(color.rgba()),
+                               qBlue(color.rgba()));
 }
 
-static QString colorStringToResource(const QString& s)
+static QString colorStringToResource(const QString &s)
 {
     return (s == kTransparent) ? "#00000000" : s;
 }
@@ -72,33 +72,38 @@ void ColorProducerWidget::on_colorButton_clicked()
     if (m_producer) {
         color = QColor(QFileInfo(m_producer->get("resource")).baseName());
     }
-    QColorDialog dialog(color);
-    dialog.setOption(QColorDialog::ShowAlphaChannel);
-    dialog.setModal(QmlApplication::dialogModality());
-    if (dialog.exec() == QDialog::Accepted) {
-        auto newColor = dialog.currentColor();
+    QColorDialog::ColorDialogOptions flags = QColorDialog::ShowAlphaChannel;
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
+    flags = flags | QColorDialog::DontUseNativeDialog;
+#endif
+    auto newColor = QColorDialog::getColor(color, this, QString(), flags);
+    if (newColor.isValid()) {
         auto rgb = newColor;
         auto transparent = QColor(0, 0, 0, 0);
         rgb.setAlpha(color.alpha());
         if (newColor.alpha() == 0 && (rgb != color ||
-            (newColor == transparent && color == transparent))) {
+                                      (newColor == transparent && color == transparent))) {
             newColor.setAlpha(255);
         }
         ui->colorLabel->setText(colorToString(newColor));
-        ui->colorLabel->setStyleSheet(QString("color: %1; background-color: %2")
+        ui->colorLabel->setStyleSheet(QStringLiteral("color: %1; background-color: %2")
                                       .arg(Util::textColor(newColor), newColor.name()));
         if (m_producer) {
             m_producer->set("resource", colorStringToResource(ui->colorLabel->text()).toLatin1().constData());
-            m_producer->set(kShotcutCaptionProperty, ui->colorLabel->text().toLatin1().constData());
+            if (ui->lineEdit->text().isEmpty() || ui->lineEdit->text() == m_title) {
+                m_producer->set(kShotcutCaptionProperty, ui->colorLabel->text().toLatin1().constData());
+            } else {
+                m_producer->set(kShotcutCaptionProperty, ui->lineEdit->text().toUtf8().constData());
+            }
             m_producer->set(kShotcutDetailProperty, ui->colorLabel->text().toLatin1().constData());
             emit producerChanged(m_producer.data());
         }
     }
 }
 
-Mlt::Producer* ColorProducerWidget::newProducer(Mlt::Profile& profile)
+Mlt::Producer *ColorProducerWidget::newProducer(Mlt::Profile &profile)
 {
-    Mlt::Producer* p = new Mlt::Producer(profile, "color:");
+    Mlt::Producer *p = new Mlt::Producer(profile, "color:");
     p->set("resource", colorStringToResource(ui->colorLabel->text()).toLatin1().constData());
     p->set("mlt_image_format", "rgba");
     MLT.setDurationFromDefault(p);
@@ -119,11 +124,11 @@ Mlt::Properties ColorProducerWidget::getPreset() const
     return p;
 }
 
-void ColorProducerWidget::loadPreset(Mlt::Properties& p)
+void ColorProducerWidget::loadPreset(Mlt::Properties &p)
 {
     QColor color(QFileInfo(p.get("resource")).baseName());
     ui->colorLabel->setText(colorToString(color));
-    ui->colorLabel->setStyleSheet(QString("color: %1; background-color: %2")
+    ui->colorLabel->setStyleSheet(QStringLiteral("color: %1; background-color: %2")
                                   .arg(Util::textColor(color), color.name()));
     QString caption, detail;
     if (m_producer) {
@@ -154,9 +159,9 @@ void ColorProducerWidget::rename()
     ui->lineEdit->selectAll();
 }
 
-void ColorProducerWidget::on_preset_selected(void* p)
+void ColorProducerWidget::on_preset_selected(void *p)
 {
-    Mlt::Properties* properties = (Mlt::Properties*) p;
+    Mlt::Properties *properties = (Mlt::Properties *) p;
     loadPreset(*properties);
     delete properties;
 }

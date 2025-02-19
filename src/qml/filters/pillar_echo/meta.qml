@@ -1,13 +1,16 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     objectName: 'blur_pad'
     name: qsTr('Blur: Pad')
+    keywords: qsTr('pillar echo fill', 'search keywords for the Blur: Pad video filter') + ' blur: pad'
     mlt_service: 'pillar_echo'
     qml: 'ui.qml'
     vui: 'vui.qml'
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
@@ -16,7 +19,6 @@ Metadata {
             Parameter {
                 name: qsTr('Position / Size')
                 property: 'rect'
-                isSimple: true
                 isRectangle: true
             }
         ]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
  */
 
 #include "database.h"
-#include "models/playlistmodel.h"
-#include "mainwindow.h"
 #include "settings.h"
 #include "dialogs/longuitask.h"
 #include <QtSql>
@@ -27,7 +25,7 @@
 #include <utime.h>
 
 static QMutex g_mutex;
-static Database* instance = nullptr;
+static Database *instance = nullptr;
 static const int kMaxThumbnailCount = 5000;
 static const int kDeleteThumbnailsTimeoutMs = 60000;
 
@@ -48,7 +46,7 @@ Database &Database::singleton(QObject *parent)
     return *instance;
 }
 
-static QString toFileName(const QString& s)
+static QString toFileName(const QString &s)
 {
     QString result = s;
     return result.replace(':', '-') +  + ".png";
@@ -57,7 +55,7 @@ static QString toFileName(const QString& s)
 QDir Database::thumbnailsDir()
 {
     QDir dir(Settings.appDataLocation());
-    const char* subfolder = "thumbnails";
+    const char *subfolder = "thumbnails";
     if (!dir.cd(subfolder)) {
         if (dir.mkdir(subfolder)) {
             dir.cd(subfolder);
@@ -76,15 +74,21 @@ QDir Database::thumbnailsDir()
                 if (query.exec("SELECT COUNT(*) FROM thumbnails;") && query.next()) {
                     n = query.value(0).toInt();
                 }
-                query.exec(QString("SELECT hash, accessed, image FROM thumbnails ORDER BY accessed DESC LIMIT %1").arg(kMaxThumbnailCount));
+                query.exec(
+                    QStringLiteral("SELECT hash, accessed, image FROM thumbnails ORDER BY accessed DESC LIMIT %1").arg(
+                        kMaxThumbnailCount));
                 for (int i = 0; query.next(); i++) {
                     QString fileName = toFileName(query.value(0).toString());
-                    longTask.reportProgress(QObject::tr("Please wait for this one-time update to the thumbnail cache..."), i, n);
+                    longTask.reportProgress(
+                        QObject::tr("Please wait for this one-time update to the thumbnail cache..."), i, n);
                     if (img.loadFromData(query.value(2).toByteArray(), "PNG")) {
                         img.save(dir.filePath(fileName));
                         auto accessed = query.value(1).toDateTime();
                         auto offset = accessed.timeZone().offsetFromUtc(accessed);
-                        struct utimbuf utimes {accessed.toSecsSinceEpoch() + offset, accessed.toSecsSinceEpoch() + offset};
+                        struct utimbuf utimes {
+                            static_cast<time_t>(accessed.toSecsSinceEpoch() + offset),
+                                        static_cast<time_t>(accessed.toSecsSinceEpoch() + offset)
+                        };
                         ::utime(dir.filePath(fileName).toUtf8().constData(), &utimes);
                     }
                 }
@@ -96,7 +100,7 @@ QDir Database::thumbnailsDir()
     return dir;
 }
 
-bool Database::putThumbnail(const QString& hash, const QImage& image)
+bool Database::putThumbnail(const QString &hash, const QImage &image)
 {
     return image.save(thumbnailsDir().filePath(toFileName(hash)));
 }
@@ -110,7 +114,7 @@ QImage Database::getThumbnail(const QString &hash)
 
 void Database::deleteOldThumbnails()
 {
-    QtConcurrent::run([=]() {
+    auto result = QtConcurrent::run([ = ]() {
         QDir dir = thumbnailsDir();
         auto ls = dir.entryList(QDir::Files | QDir::NoDotAndDotDot | QDir::Readable, QDir::Time);
         if (ls.size() - kMaxThumbnailCount > 0)

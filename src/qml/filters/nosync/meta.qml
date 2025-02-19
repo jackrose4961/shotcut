@@ -1,21 +1,30 @@
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr('No Sync')
+    keywords: qsTr('horizontal vertical synchronization slip analog', 'search keywords for the No Sync video filter') + ' vhs no sync'
     objectName: 'nosync'
     mlt_service: 'frei0r.nosync0r'
     qml: 'ui.qml'
+    icon: 'icon.webp'
+
     keyframes {
         allowAnimateIn: true
         allowAnimateOut: true
-        simpleProperties: ['0']
+        simpleProperties: ['0', '1']
         parameters: [
             Parameter {
-                name: qsTr('Offset')
+                name: qsTr('Vertical')
                 property: '0'
-                isSimple: true
+                isCurve: true
+                minimum: 0
+                maximum: 1
+            },
+            Parameter {
+                name: qsTr('Horizontal')
+                property: '1'
                 isCurve: true
                 minimum: 0
                 maximum: 1

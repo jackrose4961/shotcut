@@ -15,14 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import QtQuick 2.0
-import org.shotcut.qml 1.0
+import QtQuick
+import org.shotcut.qml
 
 Metadata {
     type: Metadata.Filter
     name: qsTr("Chroma Key: Simple")
+    keywords: qsTr('green blue screen', 'search keywords for the Chroma Key: Simple video filter') + ' chroma key: simple'
     mlt_service: 'frei0r.bluescreen0r'
     qml: 'ui.qml'
     allowMultiple: false
+    icon: 'icon.webp'
 }

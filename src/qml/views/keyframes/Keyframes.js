@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 Meltytech, LLC
+ * Copyright (c) 2017-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,26 +16,33 @@
  */
 
 function trackHeight(isCurves) {
-    return isCurves? (multitrack.trackHeight * 2) : (multitrack.trackHeight < 30)? 20 : 36
+    return isCurves? (multitrack.trackHeight * 2) : (multitrack.trackHeight < 30)? 20 : 48
 }
 
-function scrollIfNeeded(center) {
+function scrollIfNeeded(center, continuous) {
     var x = producer.position * timeScale;
     if (!tracksFlickable) return;
-    if (settings.timelineCenterPlayhead || center) {
+    if (center) {
         if (x > tracksFlickable.contentX + tracksFlickable.width * 0.5)
             tracksFlickable.contentX = x - tracksFlickable.width * 0.5;
         else if (x < tracksFlickable.width * 0.5)
             tracksFlickable.contentX = 0;
         else if (x < tracksFlickable.contentX + tracksFlickable.width * 0.5)
             tracksFlickable.contentX = x - tracksFlickable.width * 0.5;
-    } else {
-        if (x > tracksFlickable.contentX + tracksFlickable.width - 50)
-            tracksFlickable.contentX = x - tracksFlickable.width + 50;
-        else if (x < 50)
-            tracksFlickable.contentX = 0;
-        else if (x < tracksFlickable.contentX + 50)
-            tracksFlickable.contentX = x - 50;
+    } else if (tracksContainer.width > tracksFlickable.width) {
+        if (continuous) {
+            if (x > tracksFlickable.contentX + tracksFlickable.width - 50)
+                tracksFlickable.contentX = x - tracksFlickable.width + 50;
+            else if (x < 50)
+                tracksFlickable.contentX = 0;
+            else if (x < tracksFlickable.contentX + 50)
+                tracksFlickable.contentX = x - 50;
+        } else {
+            // paginated
+            var leftLimit = tracksFlickable.contentX + 50
+            var pageCount = Math.floor((x - leftLimit)/(tracksFlickable.width - 100))
+            tracksFlickable.contentX = Math.max(tracksFlickable.contentX + pageCount*(tracksFlickable.width - 100), 0);
+        }
     }
 }
 
@@ -87,7 +94,7 @@ function onMouseWheel(wheel) {
             adjustZoom(wheel.angleDelta.y / 2000, wheel.x)
         }
         if (wheel.modifiers & Qt.ShiftModifier) {
-            n = (application.OS === 'OS X')? wheel.angleDelta.x : wheel.angleDelta.y
+            n = (application.OS === 'macOS')? wheel.angleDelta.x : wheel.angleDelta.y
             multitrack.trackHeight = Math.max(10, multitrack.trackHeight + n / 25)
         }
     } else {
@@ -102,7 +109,7 @@ function onMouseWheel(wheel) {
         } else {
             // Vertical only mouse wheel requires modifier for vertical scroll.
             if (wheel.modifiers === Qt.AltModifier) {
-                n = Math.round((application.OS === 'OS X'? wheel.angleDelta.y : wheel.angleDelta.x) / 2)
+                n = Math.round((application.OS === 'macOS'? wheel.angleDelta.y : wheel.angleDelta.x) / 2)
                 tracksFlickable.contentY = clamp(tracksFlickable.contentY - n, 0, scrollMax().y)
             } else {
                 n = Math.round(wheel.angleDelta.y / 2)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 Meltytech, LLC
+ * Copyright (c) 2014-2023 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,18 +45,40 @@ public:
     };
 
     MltXmlChecker();
-    QXmlStreamReader::Error check(const QString& fileName);
+    QXmlStreamReader::Error check(const QString &fileName);
     QString errorString() const;
-    bool needsGPU() const { return m_needsGPU; }
-    bool needsCPU() const { return m_needsCPU; }
-    bool hasEffects() const { return m_hasEffects; }
-    bool isCorrected() const { return m_isCorrected; }
-    bool isUpdated() const { return m_isUpdated; }
-    QTemporaryFile& tempFile() const { return *m_tempFile; }
-    QStandardItemModel& unlinkedFilesModel() { return m_unlinkedFilesModel; }
-    void setLocale();
-    bool usesLocale() const { return m_usesLocale; }
-    QString shotcutVersion() const { return m_shotcutVersion; }
+    bool needsGPU() const
+    {
+        return m_needsGPU;
+    }
+    bool needsCPU() const
+    {
+        return m_needsCPU;
+    }
+    bool hasEffects() const
+    {
+        return m_hasEffects;
+    }
+    bool isCorrected() const
+    {
+        return m_isCorrected;
+    }
+    bool isUpdated() const
+    {
+        return m_isUpdated;
+    }
+    QTemporaryFile &tempFile() const
+    {
+        return *m_tempFile;
+    }
+    QStandardItemModel &unlinkedFilesModel()
+    {
+        return m_unlinkedFilesModel;
+    }
+    QString shotcutVersion() const
+    {
+        return m_shotcutVersion;
+    }
 
 private:
     typedef QPair<QString, QString> MltProperty;
@@ -64,20 +86,20 @@ private:
     void readMlt();
     void processProperties();
     void checkInAndOutPoints();
-    bool checkNumericString(QString& value);
-    bool fixWebVfxPath(QString& resource);
-    bool readResourceProperty(const QString& name, QString& value);
-    void checkGpuEffects(const QString& mlt_service);
-    void checkCpuEffects(const QString& mlt_service);
-    void checkUnlinkedFile(const QString& mlt_service);
-    bool fixUnlinkedFile(QString& value);
-    void fixStreamIndex(MltProperty& property);
-    bool fixVersion1701WindowsPathBug(QString& value);
-    void checkIncludesSelf(QVector<MltProperty>& properties);
-    void checkLumaAlphaOver(const QString& mlt_service, QVector<MltProperty>& properties);
-    void replaceWebVfxCropFilters(QString& mlt_service, QVector<MltProperty>& properties);
-    void replaceWebVfxChoppyFilter(QString& mlt_service, QVector<MltProperty>& properties);
-    void checkForProxy(const QString& mlt_service, QVector<MltProperty>& properties);
+    bool checkNumericString(QString &value);
+    bool fixWebVfxPath(QString &resource);
+    bool readResourceProperty(const QString &name, QString &value);
+    void checkGpuEffects(const QString &mlt_service);
+    void checkCpuEffects(const QString &mlt_service);
+    void checkUnlinkedFile(const QString &mlt_service);
+    bool fixUnlinkedFile(QString &value);
+    void fixStreamIndex(MltProperty &property);
+    bool fixVersion1701WindowsPathBug(QString &value);
+    void checkIncludesSelf(QVector<MltProperty> &properties);
+    void checkLumaAlphaOver(const QString &mlt_service, QVector<MltProperty> &properties);
+    void replaceWebVfxCropFilters(QString &mlt_service, QVector<MltProperty> &properties);
+    void replaceWebVfxChoppyFilter(QString &mlt_service, QVector<MltProperty> &properties);
+    void checkForProxy(const QString &mlt_service, QVector<MltProperty> &properties);
     bool checkMltVersion();
 
     QXmlStreamReader m_xml;
@@ -87,7 +109,6 @@ private:
     bool m_hasEffects;
     bool m_isCorrected;
     bool m_isUpdated;
-    bool m_usesLocale;
     QChar m_decimalPoint;
     QScopedPointer<QTemporaryFile> m_tempFile;
     bool m_numericValueChanged;
@@ -103,8 +124,11 @@ private:
         QString prefix;
         QString suffix;
         int audio_index, video_index;
+        bool isProxy;
+        bool notProxyMeta;
 
-        void clear() {
+        void clear()
+        {
             info.setFile(QString());
             hash.clear();
             newHash.clear();
@@ -112,6 +136,8 @@ private:
             prefix.clear();
             suffix.clear();
             audio_index = video_index = -1;
+            isProxy = false;
+            notProxyMeta = false;
         }
     } m_resource;
     QVersionNumber m_mltVersion;

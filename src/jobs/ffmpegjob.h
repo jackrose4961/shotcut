@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 Meltytech, LLC
+ * Copyright (c) 2016-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,9 +25,13 @@ class FfmpegJob : public AbstractJob
 {
     Q_OBJECT
 public:
-    FfmpegJob(const QString& name, const QStringList& args, bool isOpenLog = true);
+    FfmpegJob(const QString &name, const QStringList &args, bool isOpenLog = true,
+              QThread::Priority priority = Settings.jobPriority());
     virtual ~FfmpegJob();
     void start();
+
+public slots:
+    virtual void stop();
 
 private slots:
     void onOpenTriggered();
@@ -35,9 +39,7 @@ private slots:
 
 private:
     QStringList m_args;
-    QString m_duration;
-    bool m_outputMsgRead;
-    int m_totalFrames;
+    double m_duration;
     int m_previousPercent;
     bool m_isOpenLog;
 };

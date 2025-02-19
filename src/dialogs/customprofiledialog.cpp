@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 Meltytech, LLC
+ * Copyright (c) 2013-2024 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "util.h"
 #include <QDir>
 #include <QDesktopServices>
+#include <QRegularExpression>
 
 CustomProfileDialog::CustomProfileDialog(QWidget *parent) :
     QDialog(parent),
@@ -45,7 +46,11 @@ CustomProfileDialog::~CustomProfileDialog()
 
 QString CustomProfileDialog::profileName() const
 {
-    return ui->nameEdit->text();
+    // Replace characters that are not allowed in Windows file names
+    QString filename = ui->nameEdit->text();
+    static QRegularExpression re("[" + QRegularExpression::escape( "\\/:*?\"<>|" ) + "]");
+    filename = filename.replace(re, QStringLiteral( "_" ));
+    return filename;
 }
 
 void CustomProfileDialog::on_buttonBox_accepted()
@@ -54,14 +59,15 @@ void CustomProfileDialog::on_buttonBox_accepted()
     MLT.profile().set_width(ui->widthSpinner->value());
     MLT.profile().set_height(ui->heightSpinner->value());
     MLT.profile().set_display_aspect(ui->aspectNumSpinner->value(), ui->aspectDenSpinner->value());
-    QSize sar(ui->aspectNumSpinner->value() * ui->heightSpinner->value(), ui->aspectDenSpinner->value() * ui->widthSpinner->value());
+    QSize sar(ui->aspectNumSpinner->value() * ui->heightSpinner->value(),
+              ui->aspectDenSpinner->value() * ui->widthSpinner->value());
     auto gcd = Util::greatestCommonDivisor(sar.width(), sar.height());
     MLT.profile().set_sample_aspect(sar.width() / gcd, sar.height() / gcd);
     int numerator, denominator;
     Util::normalizeFrameRate(ui->fpsSpinner->value(), numerator, denominator);
     MLT.profile().set_frame_rate(numerator, denominator);
     MLT.profile().set_progressive(ui->scanModeCombo->currentIndex());
-    MLT.profile().set_colorspace((ui->colorspaceCombo->currentIndex() == 1)? 709 : 601);
+    MLT.profile().set_colorspace((ui->colorspaceCombo->currentIndex() == 1) ? 709 : 601);
     MLT.updatePreviewProfile();
     MLT.setPreviewScale(Settings.playerPreviewScale());
 
@@ -86,7 +92,7 @@ void CustomProfileDialog::on_buttonBox_accepted()
         p.set("colorspace", MLT.profile().colorspace());
         p.set("frame_rate_num", MLT.profile().frame_rate_num());
         p.set("frame_rate_den", MLT.profile().frame_rate_den());
-        p.save(dir.filePath(ui->nameEdit->text()).toUtf8().constData());
+        p.save(dir.filePath(profileName()).toUtf8().constData());
     }
 }
 
@@ -117,24 +123,24 @@ void CustomProfileDialog::on_fpsSpinner_editingFinished()
     }
 }
 
-void CustomProfileDialog::on_fpsComboBox_activated(const QString &arg1)
+void CustomProfileDialog::on_fpsComboBox_textActivated(const QString &arg1)
 {
     if (arg1.isEmpty()) return;
     ui->fpsSpinner->setValue(arg1.toDouble());
 }
 
-void CustomProfileDialog::on_resolutionComboBox_activated(const QString &arg1)
+void CustomProfileDialog::on_resolutionComboBox_textActivated(const QString &arg1)
 {
     if (arg1.isEmpty()) return;
-    auto parts = arg1.splitRef(' ');
+    auto parts = arg1.split(' ');
     ui->widthSpinner->setValue(parts[0].toInt());
     ui->heightSpinner->setValue(parts[2].toInt());
 }
 
-void CustomProfileDialog::on_aspectRatioComboBox_activated(const QString &arg1)
+void CustomProfileDialog::on_aspectRatioComboBox_textActivated(const QString &arg1)
 {
     if (arg1.isEmpty()) return;
-    auto parts = arg1.splitRef(' ')[0].split(':');
+    auto parts = arg1.split(' ')[0].split(':');
     ui->aspectNumSpinner->setValue(parts[0].toInt());
     ui->aspectDenSpinner->setValue(parts[1].toInt());
 }

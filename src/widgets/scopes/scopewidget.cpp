@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Meltytech, LLC
- * Author: Brian Matherly <code@brianmatherly.com>
+ * Copyright (c) 2015-2022 Meltytech, LLC
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,14 +19,14 @@
 #include <Logger.h>
 #include <QtConcurrent/QtConcurrent>
 
-ScopeWidget::ScopeWidget(const QString& name)
-  : QWidget()
-  , m_queue(3, DataQueue<SharedFrame>::OverflowModeDiscardOldest)
-  , m_future()
-  , m_refreshPending(false)
-  , m_mutex(QMutex::NonRecursive)
-  , m_forceRefresh(false)
-  , m_size(0, 0)
+ScopeWidget::ScopeWidget(const QString &name)
+    : QWidget()
+    , m_queue(3, DataQueue<SharedFrame>::OverflowModeDiscardOldest)
+    , m_future()
+    , m_refreshPending(false)
+    , m_mutex()
+    , m_forceRefresh(false)
+    , m_size(0, 0)
 {
     LOG_DEBUG() << "begin" << m_future.isFinished();
     setObjectName(name);
@@ -38,7 +37,7 @@ ScopeWidget::~ScopeWidget()
 {
 }
 
-void ScopeWidget::onNewFrame(const SharedFrame& frame)
+void ScopeWidget::onNewFrame(const SharedFrame &frame)
 {
     m_queue.push(frame);
     requestRefresh();
@@ -47,7 +46,7 @@ void ScopeWidget::onNewFrame(const SharedFrame& frame)
 void ScopeWidget::requestRefresh()
 {
     if (m_future.isFinished()) {
-        m_future = QtConcurrent::run(this, &ScopeWidget::refreshInThread);
+        m_future = QtConcurrent::run(&ScopeWidget::refreshInThread, this);
     } else {
         m_refreshPending = true;
     }
@@ -79,7 +78,7 @@ void ScopeWidget::onRefreshThreadComplete()
     }
 }
 
-void ScopeWidget::resizeEvent(QResizeEvent*)
+void ScopeWidget::resizeEvent(QResizeEvent *)
 {
     m_mutex.lock();
     m_size = size();
@@ -89,7 +88,7 @@ void ScopeWidget::resizeEvent(QResizeEvent*)
     }
 }
 
-void ScopeWidget::changeEvent(QEvent*)
+void ScopeWidget::changeEvent(QEvent *)
 {
     m_mutex.lock();
     m_forceRefresh = true;
